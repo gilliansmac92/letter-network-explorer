@@ -962,7 +962,7 @@ function renderSpanChart() {
       .style('cursor','pointer')
       .on('mousemove', evt => {
         showTooltip(evt,
-          `<strong>${d.name}</strong>First: ${d.first}<br>Last: ${d.last}<br>Total: ${d.total.toLocaleString()}`);
+          `<strong>${d.name}</strong><br>First: ${d.first}<br>Last: ${d.last}<br>Total: ${d.total.toLocaleString()}`);
       })
       .on('mouseleave', hideTooltip);
 
@@ -1228,7 +1228,7 @@ function renderTopNetwork() {
   const totalMax = d3.max(nodes, d=>d.total)||1;
   const sizeScale = d3.scaleSqrt().domain([1,totalMax]).range([4,20]);
   const linkWidthScale = d3.scaleLinear().domain([1, d3.max(links,d=>d.weight)||1]).range([0.5,5]);
-  const colorScale = d3.scaleSequential().domain([1,totalMax]).interpolator(d3.interpolateBlues);
+  const colorScale = d3.scaleSequential().domain([1,totalMax]).interpolator(d3.interpolateRgb('#2a4a7f','#58a6ff'));
 
   const svg = d3.select(svgEl);
   const g = svg.append('g');
@@ -1414,14 +1414,14 @@ function renderPlaceNetwork() {
       showTooltip(evt,`<strong>${a} ↔ ${b}</strong><br>${d.weight} letters`);
     }).on('mouseleave',hideTooltip);
 
-  const node = g.selectAll('.node').data(nodes).join('g').attr('class','node')
+  const placeNode = g.selectAll('.node').data(nodes).join('g').attr('class','node')
     .call(d3.drag()
       .on('start',(evt,d)=>{if(!evt.active)placeSimulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
       .on('drag',(evt,d)=>{d.fx=evt.x;d.fy=evt.y;})
       .on('end',(evt,d)=>{if(!evt.active)placeSimulation.alphaTarget(0);d.fx=null;d.fy=null;})
     );
 
-  node.append('circle')
+  placeNode.append('circle')
     .attr('r',d=>sizeScale(Math.max(1,d.total)))
     .attr('fill','var(--card2)')
     .attr('stroke','var(--gold)').attr('stroke-width',1.5)
@@ -1429,7 +1429,7 @@ function renderPlaceNetwork() {
     .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${d.name}</strong><br>Activity: ${d.total.toLocaleString()}`))
     .on('mouseleave',hideTooltip);
 
-  node.append('text')
+  placeNode.append('text')
     .attr('dy',d=>sizeScale(Math.max(1,d.total))+11)
     .attr('text-anchor','middle')
     .attr('fill','var(--muted)').attr('font-size','10px')
@@ -1444,7 +1444,7 @@ function renderPlaceNetwork() {
       g.selectAll('.link')
         .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
         .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-      node.attr('transform',d=>`translate(${d.x},${d.y})`);
+      placeNode.attr('transform',d=>`translate(${d.x},${d.y})`);
     });
 }
 
