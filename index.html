@@ -493,7 +493,11 @@ const NAME_ALIASES = {
 function normalizeName(name) {
   if (!name) return '';
   const trimmed = name.trim();
-  return NAME_ALIASES[trimmed] !== undefined ? NAME_ALIASES[trimmed] : trimmed;
+  return NAME_ALIASES[trimmed] ?? trimmed;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function parseDate(str) {
@@ -788,13 +792,14 @@ function renderYearBarChart() {
 }
 
 function renderRankTable(containerId, data, rankHead, nameHead, countHead) {
-  const tbody = data.map((d,i) =>
-    `<tr>
+  const tbody = data.map((d,i) => {
+    const safeName = escHtml(d.name) || '(Unknown)';
+    return `<tr>
       <td class="rank-num">${i+1}</td>
-      <td class="rank-name" title="${escHtml(d.name)}">${escHtml(d.name) || '(Unknown)'}</td>
+      <td class="rank-name" title="${safeName}">${safeName}</td>
       <td class="rank-count">${d.count.toLocaleString()}</td>
-    </tr>`
-  ).join('');
+    </tr>`;
+  }).join('');
   document.getElementById(containerId).innerHTML = `
     <table class="rank-table">
       <thead><tr><th>${rankHead}</th><th>${nameHead}</th><th style="text-align:right">${countHead}</th></tr></thead>
@@ -904,7 +909,7 @@ function renderHeatmap() {
     svg.append('text')
       .attr('x', cx + cellW/2).attr('y', marginT + cellH/2 + 5)
       .attr('text-anchor','middle')
-      .attr('fill', count > maxCount * 0.4 ? '#0d1117' : 'var(--muted)')
+      .attr('fill', count > maxCount * 0.4 ? '#0d1117' : '#8b949e')
       .attr('font-size','13px')
       .attr('font-weight','600')
       .text(count || '0');
@@ -920,7 +925,7 @@ function renderHeatmap() {
   const defs = svg.append('defs');
   const grad = defs.append('linearGradient').attr('id','hm-grad');
   grad.append('stop').attr('offset','0%').attr('stop-color','#1c2128');
-  grad.append('stop').attr('offset','100%').attr('stop-color','var(--gold)');
+  grad.append('stop').attr('offset','100%').attr('stop-color','#e8c468');
   svg.append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH)
     .attr('rx',3).attr('fill','url(#hm-grad)');
   svg.append('text').attr('x',barX-4).attr('y',barY+8).attr('text-anchor','end')
@@ -1017,10 +1022,6 @@ function populatePersonSelect() {
   sel.innerHTML = APP.allPeople.map(p =>
     `<option value="${escHtml(p.name)}">${escHtml(p.name)} (${p.total})</option>`
   ).join('');
-}
-
-function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function setupNetworkControls() {
@@ -1478,6 +1479,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ══════════════════════════════════════════════════════════
 Papa.parse('letters-raw.csv', {
   header: true,
+  download: true,
   skipEmptyLines: true,
   complete: (results) => {
     processData(results.data);
