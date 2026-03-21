@@ -53,26 +53,154 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Header ── */
-    header {
-      background: var(--card);
+    /* ── Hero Banner ── */
+    .hero {
+      position: relative;
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0f1923 100%);
       border-bottom: 1px solid var(--border);
-      padding: 24px 40px 20px;
+      padding: 72px 40px 64px;
+      overflow: hidden;
     }
-    header h1 {
-      font-size: 1.5rem;
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, rgba(232,196,104,0.055) 1px, transparent 0);
+      background-size: 42px 42px;
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: -140px; right: -140px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(232,196,104,0.07) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 860px; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(232,196,104,0.1);
+      border: 1px solid rgba(232,196,104,0.28);
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin-bottom: 22px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+      margin-bottom: 22px;
+    }
+    .hero h1 span { color: var(--gold); }
+    .hero-subtitle {
+      color: var(--muted);
+      font-size: 1.0rem;
+      font-weight: 400;
+      max-width: 660px;
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .hero-stat { display: flex; flex-direction: column; gap: 3px; }
+    .hero-stat .hs-value {
+      font-size: 1.9rem;
       font-weight: 700;
       color: var(--text);
       letter-spacing: -0.02em;
-      margin-bottom: 6px;
+      line-height: 1;
     }
-    header h1 span { color: var(--gold); }
-    header p {
+    .hero-stat .hs-label {
+      font-size: 0.7rem;
       color: var(--muted);
-      font-size: 0.82rem;
-      font-weight: 400;
-      max-width: 720px;
-      line-height: 1.5;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }
+    .hero-divider {
+      width: 1px;
+      height: 48px;
+      background: var(--border);
+      align-self: center;
+    }
+
+    /* ── Full Network Section ── */
+    .full-network-section {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px 28px;
+    }
+    .full-network-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 0 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .network-info-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .full-network-container {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    #full-network-svg {
+      width: 100%;
+      height: 600px;
+      cursor: grab;
+      display: block;
+    }
+    #full-network-svg:active { cursor: grabbing; }
+    .network-hint {
+      position: absolute;
+      bottom: 12px;
+      right: 14px;
+      background: rgba(13,17,23,0.75);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 11px;
+      font-size: 0.7rem;
+      color: var(--muted);
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+    .fn-legend {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .fn-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .fn-legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
     }
 
     /* ── Tab Nav ── */
@@ -316,8 +444,14 @@
 
     @media (max-width: 900px) {
       main { padding: 20px 16px; }
-      header { padding: 16px; }
+      .hero { padding: 40px 16px 36px; }
+      .hero h1 { font-size: 1.9rem; }
+      .hero-subtitle { font-size: 0.88rem; }
+      .hero-stats { gap: 24px; }
+      .hero-divider { display: none; }
       nav { padding: 0 16px; }
+      .full-network-section { padding: 0 16px 20px; }
+      #full-network-svg { height: 420px; }
       .stat-grid { grid-template-columns: repeat(2, 1fr); }
       .two-col, .three-col { grid-template-columns: 1fr; }
       .people-layout { grid-template-columns: 1fr; }
@@ -332,11 +466,53 @@
   <p>Loading letter data…</p>
 </div>
 
-<!-- Header -->
-<header>
-  <h1>Exploring <span>Letter Networks</span>: Scotland during Revolution</h1>
-  <p>Mapping correspondence between individuals across Scotland, England, and Ireland during the 1688–1692 Revolution — drawn from manuscript and printed letter collections</p>
+<!-- Hero Banner -->
+<header class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">Historical Network Analysis · Scotland 1688–1692</div>
+    <h1>Exploring <span>Letter Networks</span>:<br>Scotland during Revolution</h1>
+    <p class="hero-subtitle">Mapping correspondence between individuals across Scotland, England, and Ireland during the 1688–1692 Revolution — drawn from manuscript and printed letter collections.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hs-value" id="hero-total">—</div>
+        <div class="hs-label">Letters</div>
+      </div>
+      <div class="hero-divider"></div>
+      <div class="hero-stat">
+        <div class="hs-value" id="hero-people">—</div>
+        <div class="hs-label">People</div>
+      </div>
+      <div class="hero-divider"></div>
+      <div class="hero-stat">
+        <div class="hs-value">1688–1692</div>
+        <div class="hs-label">Years Covered</div>
+      </div>
+      <div class="hero-divider"></div>
+      <div class="hero-stat">
+        <div class="hs-value" id="hero-colls">—</div>
+        <div class="hs-label">Collections</div>
+      </div>
+    </div>
+  </div>
 </header>
+
+<!-- Force Atlas Correspondence Network -->
+<section class="full-network-section">
+  <div class="full-network-header">
+    <div class="section-header" style="margin-bottom:0">Force Atlas Correspondence Network</div>
+    <span class="network-info-label" id="network-node-count"></span>
+  </div>
+  <div class="full-network-container">
+    <svg id="full-network-svg"></svg>
+    <div class="network-hint">Scroll to zoom · Drag to pan · Hover for details</div>
+  </div>
+  <div class="fn-legend" id="fn-legend">
+    <span class="fn-legend-item"><span class="fn-legend-dot" style="background:#1a3a5c;border:1px solid #30363d"></span>Few letters</span>
+    <span class="fn-legend-item"><span class="fn-legend-dot" style="background:#3a6a9f"></span></span>
+    <span class="fn-legend-item"><span class="fn-legend-dot" style="background:#e8c468;border:1px solid rgba(232,196,104,0.4)"></span>Many letters</span>
+    <span class="fn-legend-item" style="margin-left:8px;color:var(--muted)">Node size = total correspondence · Edge weight = letter count</span>
+  </div>
+</section>
 
 <!-- Tab Navigation -->
 <nav>
@@ -720,6 +896,150 @@ function positionTooltip(evt) {
   tooltip.style.top  = top  + 'px';
 }
 function hideTooltip() { tooltip.style.display = 'none'; }
+
+// ══════════════════════════════════════════════════════════
+// FORCE ATLAS CORRESPONDENCE NETWORK (LANDING PAGE)
+// ══════════════════════════════════════════════════════════
+let fullNetworkSimulation = null;
+
+function renderFullNetwork() {
+  const svgEl = document.getElementById('full-network-svg');
+  if (!svgEl) return;
+  if (fullNetworkSimulation) { fullNetworkSimulation.stop(); fullNetworkSimulation = null; }
+  svgEl.innerHTML = '';
+
+  const W = svgEl.parentElement.clientWidth || 1000;
+  const H = parseInt(svgEl.getAttribute('height') || svgEl.style.height) || 600;
+  svgEl.setAttribute('width', W);
+  svgEl.setAttribute('height', H);
+
+  // Use all people sorted by total, capped at 160 for smooth performance
+  const nodeLimit = 160;
+  const visiblePeople = APP.allPeople.slice(0, nodeLimit);
+  const nameSet = new Set(visiblePeople.map(d => d.name));
+
+  // Build node map with degree tracking
+  const nodeMap = {};
+  visiblePeople.forEach(d => {
+    nodeMap[d.name] = { id: d.name, total: d.total, sent: d.sent, recv: d.recv, degree: 0 };
+  });
+
+  // Build links from pairCounts — merge directed pairs into undirected edges
+  const links = [];
+  const edgeMap = {};
+  Object.entries(APP.pairCounts).forEach(([key, cnt]) => {
+    const [a, b] = key.split('|||');
+    if (!nameSet.has(a) || !nameSet.has(b) || a === b) return;
+    const pk = [a, b].sort().join('|||');
+    if (edgeMap[pk] === undefined) {
+      edgeMap[pk] = links.length;
+      links.push({ source: a, target: b, weight: cnt });
+    } else {
+      links[edgeMap[pk]].weight += cnt;
+    }
+  });
+
+  // Count degree from actual links
+  links.forEach(l => {
+    const sa = l.source, sb = l.target;
+    if (nodeMap[sa]) nodeMap[sa].degree++;
+    if (nodeMap[sb]) nodeMap[sb].degree++;
+  });
+
+  const nodes = visiblePeople.map(d => ({ ...nodeMap[d.name] }));
+
+  const totalMax = d3.max(nodes, d => d.total) || 1;
+  const weightMax = d3.max(links, d => d.weight) || 1;
+  const sizeScale = d3.scaleSqrt().domain([1, totalMax]).range([3, 19]);
+  const linkWidthScale = d3.scaleLinear().domain([1, weightMax]).range([0.3, 4.5]);
+  // ForceAtlas2-style colour: dark blue (few) → gold (many)
+  const colorScale = d3.scaleSequential()
+    .domain([0, totalMax])
+    .interpolator(d3.interpolateRgb('#1a3a5c', '#e8c468'));
+
+  const svg = d3.select(svgEl);
+  const g = svg.append('g');
+
+  svg.call(
+    d3.zoom()
+      .scaleExtent([0.08, 8])
+      .on('zoom', evt => g.attr('transform', evt.transform))
+  );
+
+  // Draw links
+  const linkEls = g.selectAll('.fn-link').data(links).join('line')
+    .attr('class', 'fn-link')
+    .attr('stroke', '#30363d')
+    .attr('stroke-width', d => linkWidthScale(d.weight))
+    .attr('stroke-opacity', 0.4)
+    .on('mousemove', (evt, d) => {
+      const a = d.source.id || d.source, b = d.target.id || d.target;
+      showTooltip(evt, `<strong>${escHtml(String(a))} ↔ ${escHtml(String(b))}</strong><br>${d.weight} letter${d.weight !== 1 ? 's' : ''}`);
+    })
+    .on('mouseleave', hideTooltip);
+
+  // Draw nodes
+  const node = g.selectAll('.fn-node').data(nodes).join('g')
+    .attr('class', 'fn-node')
+    .call(
+      d3.drag()
+        .on('start', (evt, d) => { if (!evt.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+        .on('drag',  (evt, d) => { d.fx = evt.x; d.fy = evt.y; })
+        .on('end',   (evt, d) => { if (!evt.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
+    );
+
+  node.append('circle')
+    .attr('r', d => sizeScale(Math.max(1, d.total)))
+    .attr('fill', d => colorScale(d.total))
+    .attr('stroke', d => d.total > totalMax * 0.25 ? 'rgba(232,196,104,0.55)' : 'rgba(48,54,61,0.5)')
+    .attr('stroke-width', d => d.total > totalMax * 0.25 ? 1.5 : 0.5)
+    .style('cursor', 'pointer')
+    .on('mousemove', (evt, d) => {
+      showTooltip(evt,
+        `<strong>${escHtml(d.id)}</strong><br>Sent: ${d.sent} · Received: ${d.recv}<br>Total: ${d.total} letters`
+      );
+    })
+    .on('mouseleave', hideTooltip);
+
+  // Labels only for the most connected nodes to avoid clutter
+  const labelThreshold = d3.quantile(nodes.map(d => d.total).sort(d3.ascending), 0.82) || 10;
+  node.filter(d => d.total >= labelThreshold)
+    .append('text')
+    .attr('dy', d => sizeScale(Math.max(1, d.total)) + 10)
+    .attr('text-anchor', 'middle')
+    .attr('fill', 'var(--muted)')
+    .attr('font-size', '8.5px')
+    .attr('pointer-events', 'none')
+    .text(d => d.id.length > 22 ? d.id.slice(0, 20) + '…' : d.id);
+
+  // ForceAtlas2-inspired simulation:
+  //  - Hub-scaled repulsion: hubs push neighbours away more strongly
+  //  - Weak global gravity keeps the graph centred
+  //  - Link attraction with distance scaled by edge weight
+  //  - Collision avoidance prevents overlapping nodes
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id)
+      .distance(d => 38 + linkWidthScale(d.weight) * 18)
+      .strength(0.35))
+    .force('charge', d3.forceManyBody()
+      .strength(d => -Math.max(55, (d.degree + 1) * 28)))
+    .force('center', d3.forceCenter(W / 2, H / 2).strength(0.04))
+    .force('collide', d3.forceCollide(d => sizeScale(Math.max(1, d.total)) + 4).strength(0.75))
+    .velocityDecay(0.38)
+    .alphaDecay(0.014)
+    .on('tick', () => {
+      linkEls
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+  fullNetworkSimulation = sim;
+
+  // Update info label
+  const infoEl = document.getElementById('network-node-count');
+  if (infoEl) infoEl.textContent = `${nodes.length} people · ${links.length} connections`;
+}
 
 // ══════════════════════════════════════════════════════════
 // TAB 1: OVERVIEW
@@ -1483,6 +1803,14 @@ Papa.parse('letters-raw.csv', {
   skipEmptyLines: true,
   complete: (results) => {
     processData(results.data);
+
+    // Populate hero banner stats
+    document.getElementById('hero-total').textContent  = APP.totalLetters.toLocaleString();
+    document.getElementById('hero-people').textContent = APP.uniquePeople.size.toLocaleString();
+    document.getElementById('hero-colls').textContent  = APP.uniqueCollections.size.toLocaleString();
+
+    // Render full network graph on landing page
+    renderFullNetwork();
 
     // Render first tab
     renderedTabs.add('tab1');
