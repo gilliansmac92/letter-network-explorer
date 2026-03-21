@@ -879,7 +879,7 @@ function renderHeatmap() {
   const maxCount = Math.max(1, ...Object.values(APP.monthCounts1689));
   const colorScale = d3.scaleLinear()
     .domain([0, maxCount])
-    .range(['#1c2128', 'var(--gold)']);
+    .range(['#1c2128', '#e8c468']);
 
   const svg = d3.select(container).append('svg')
     .attr('width', W).attr('height', svgH);
@@ -1410,8 +1410,8 @@ function renderPlaceNetwork() {
     .attr('stroke','var(--gold)').attr('stroke-opacity',0.35)
     .attr('stroke-width',d=>linkWidthScale(d.weight))
     .on('mousemove',(evt,d)=>{
-      const a=d.source.name||d.source, b=d.target.name||d.target;
-      showTooltip(evt,`<strong>${escHtml(String(a))} ↔ ${escHtml(String(b))}</strong><br>${d.weight} letters`);
+      const sourceName=d.source.name||d.source, targetName=d.target.name||d.target;
+      showTooltip(evt,`<strong>${escHtml(String(sourceName))} ↔ ${escHtml(String(targetName))}</strong><br>${d.weight} letters`);
     }).on('mouseleave',hideTooltip);
 
   const placeNode = g.selectAll('.node').data(nodes).join('g').attr('class','node')
