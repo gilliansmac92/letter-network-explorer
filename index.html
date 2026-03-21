@@ -765,7 +765,7 @@ function renderYearBarChart() {
     .style('cursor','pointer');
 
   bars.on('mousemove', (evt, d) => {
-    showTooltip(evt, `<strong>${d.year}</strong><br>${d.count.toLocaleString()} letters`);
+    showTooltip(evt, `<strong>${escHtml(String(d.year))}</strong><br>${d.count.toLocaleString()} letters`);
   }).on('mouseleave', hideTooltip);
 
   // Count labels on bars
@@ -791,7 +791,7 @@ function renderRankTable(containerId, data, rankHead, nameHead, countHead) {
   const tbody = data.map((d,i) =>
     `<tr>
       <td class="rank-num">${i+1}</td>
-      <td class="rank-name" title="${d.name}">${d.name || '(Unknown)'}</td>
+      <td class="rank-name" title="${escHtml(d.name)}">${escHtml(d.name) || '(Unknown)'}</td>
       <td class="rank-count">${d.count.toLocaleString()}</td>
     </tr>`
   ).join('');
@@ -851,7 +851,7 @@ function renderStackedBar() {
     .style('cursor','pointer')
     .on('mousemove', (evt, d) => {
       const val = (d[1] - d[0]);
-      showTooltip(evt, `<strong>${d.key} — ${d.data.year}</strong><br>${val.toLocaleString()} letters`);
+      showTooltip(evt, `<strong>${escHtml(String(d.key))} — ${escHtml(String(d.data.year))}</strong><br>${val.toLocaleString()} letters`);
     })
     .on('mouseleave', hideTooltip);
 
@@ -862,7 +862,7 @@ function renderStackedBar() {
   collKeys.forEach((k,i) => {
     const item = document.createElement('div');
     item.className = 'legend-item';
-    item.innerHTML = `<div class="legend-swatch" style="background:${COLL_COLORS[i]}"></div><span>${k}</span>`;
+    item.innerHTML = `<div class="legend-swatch" style="background:${COLL_COLORS[i]}"></div><span>${escHtml(k)}</span>`;
     legendEl.appendChild(item);
   });
 }
@@ -910,7 +910,7 @@ function renderHeatmap() {
       .text(count || '0');
 
     rect.on('mousemove', evt => {
-      showTooltip(evt, `<strong>${mon} 1689</strong><br>${count.toLocaleString()} letters`);
+      showTooltip(evt, `<strong>${escHtml(mon)} 1689</strong><br>${count.toLocaleString()} letters`);
     }).on('mouseleave', hideTooltip);
   });
 
@@ -962,7 +962,7 @@ function renderSpanChart() {
       .style('cursor','pointer')
       .on('mousemove', evt => {
         showTooltip(evt,
-          `<strong>${d.name}</strong><br>First: ${d.first}<br>Last: ${d.last}<br>Total: ${d.total.toLocaleString()}`);
+          `<strong>${escHtml(d.name)}</strong><br>First: ${d.first}<br>Last: ${d.last}<br>Total: ${d.total.toLocaleString()}`);
       })
       .on('mouseleave', hideTooltip);
 
@@ -1123,7 +1123,7 @@ function renderPersonNetwork(centerName) {
     .attr('stroke-opacity', 0.55)
     .on('mousemove', (evt, d) => {
       showTooltip(evt,
-        `<strong>${d.source.id || d.source} ↔ ${d.target.id || d.target}</strong><br>${d.weight} letter${d.weight>1?'s':''}<br>Direction: ${d.dir}`
+        `<strong>${escHtml(d.source.id || d.source)} ↔ ${escHtml(d.target.id || d.target)}</strong><br>${d.weight} letter${d.weight>1?'s':''}<br>Direction: ${escHtml(d.dir)}`
       );
     }).on('mouseleave', hideTooltip);
 
@@ -1151,7 +1151,7 @@ function renderPersonNetwork(centerName) {
     })
     .on('mousemove', (evt, d) => {
       const s = APP.personSent[d.id]||0, r = APP.personRecv[d.id]||0;
-      showTooltip(evt, `<strong>${d.id}</strong><br>Sent: ${s} | Recv: ${r}<br>Click to explore`);
+      showTooltip(evt, `<strong>${escHtml(d.id)}</strong><br>Sent: ${s} | Recv: ${r}<br>Click to explore`);
     }).on('mouseleave', hideTooltip);
 
   node.append('text')
@@ -1241,7 +1241,7 @@ function renderTopNetwork() {
     .attr('stroke-opacity',0.45)
     .on('mousemove',(evt,d)=>{
       const a=d.source.id||d.source, b=d.target.id||d.target;
-      showTooltip(evt,`<strong>${a} ↔ ${b}</strong><br>${d.weight} letters`);
+      showTooltip(evt,`<strong>${escHtml(String(a))} ↔ ${escHtml(String(b))}</strong><br>${d.weight} letters`);
     }).on('mouseleave',hideTooltip);
 
   const node = g.selectAll('.node').data(nodes).join('g').attr('class','node')
@@ -1262,7 +1262,7 @@ function renderTopNetwork() {
       updatePersonStats(d.id);
     })
     .on('mousemove',(evt,d)=>{
-      showTooltip(evt,`<strong>${d.id}</strong><br>Total: ${d.total}<br>Click to explore`);
+      showTooltip(evt,`<strong>${escHtml(d.id)}</strong><br>Total: ${d.total}<br>Click to explore`);
     }).on('mouseleave',hideTooltip);
 
   node.append('text')
@@ -1324,7 +1324,7 @@ function renderPlaceBarChart(containerId, counts, topN, _title) {
     .attr('width',d=>x(d.count)).attr('height',y.bandwidth())
     .attr('rx',3).attr('fill','var(--blue)').attr('opacity',0.75)
     .style('cursor','pointer')
-    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${d.place}</strong><br>${d.count.toLocaleString()} letters`))
+    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${escHtml(d.place)}</strong><br>${d.count.toLocaleString()} letters`))
     .on('mouseleave',hideTooltip);
 
   g.selectAll('.count-label').data(data).join('text')
@@ -1411,7 +1411,7 @@ function renderPlaceNetwork() {
     .attr('stroke-width',d=>linkWidthScale(d.weight))
     .on('mousemove',(evt,d)=>{
       const a=d.source.name||d.source, b=d.target.name||d.target;
-      showTooltip(evt,`<strong>${a} ↔ ${b}</strong><br>${d.weight} letters`);
+      showTooltip(evt,`<strong>${escHtml(String(a))} ↔ ${escHtml(String(b))}</strong><br>${d.weight} letters`);
     }).on('mouseleave',hideTooltip);
 
   const placeNode = g.selectAll('.node').data(nodes).join('g').attr('class','node')
@@ -1426,7 +1426,7 @@ function renderPlaceNetwork() {
     .attr('fill','var(--card2)')
     .attr('stroke','var(--gold)').attr('stroke-width',1.5)
     .style('cursor','pointer')
-    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${d.name}</strong><br>Activity: ${d.total.toLocaleString()}`))
+    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${escHtml(d.name)}</strong><br>Activity: ${d.total.toLocaleString()}`))
     .on('mouseleave',hideTooltip);
 
   placeNode.append('text')
