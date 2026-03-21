@@ -503,15 +503,13 @@ function parseDate(str) {
   // "1689, Jan 20" or "1689, Jan"
   let m = str.match(/^(\d{4}),\s*([A-Za-z]+)/);
   if (m) {
-    const months = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
-    return { year: +m[1], month: months[m[2].toLowerCase().slice(0,3)] || null };
+    return { year: +m[1], month: MONTH_NUMS[m[2].toLowerCase().slice(0,3)] || null };
   }
 
   // "June-July 1689" or "June 1689"
   m = str.match(/([A-Za-z]+).*?(\d{4})/);
   if (m) {
-    const months = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
-    return { year: +m[2], month: months[m[1].toLowerCase().slice(0,3)] || null };
+    return { year: +m[2], month: MONTH_NUMS[m[1].toLowerCase().slice(0,3)] || null };
   }
 
   // "1/20/1689"
@@ -539,6 +537,7 @@ const COLLECTION_ABBR = {
 };
 function abbrevColl(name) { return COLLECTION_ABBR[name] || name; }
 
+const MONTH_NUMS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
 const YEARS = [1688, 1689, 1690, 1691, 1692];
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const COLL_COLORS = ['#e8c468','#58a6ff','#3fb950','#bc8cff','#ffa657','#6e7681'];
@@ -766,7 +765,7 @@ function renderYearBarChart() {
     .style('cursor','pointer');
 
   bars.on('mousemove', (evt, d) => {
-    showTooltip(evt, `<strong>${d.year}</strong>${d.count.toLocaleString()} letters`);
+    showTooltip(evt, `<strong>${d.year}</strong><br>${d.count.toLocaleString()} letters`);
   }).on('mouseleave', hideTooltip);
 
   // Count labels on bars
@@ -852,7 +851,7 @@ function renderStackedBar() {
     .style('cursor','pointer')
     .on('mousemove', (evt, d) => {
       const val = (d[1] - d[0]);
-      showTooltip(evt, `<strong>${d.key} — ${d.data.year}</strong>${val.toLocaleString()} letters`);
+      showTooltip(evt, `<strong>${d.key} — ${d.data.year}</strong><br>${val.toLocaleString()} letters`);
     })
     .on('mouseleave', hideTooltip);
 
@@ -911,7 +910,7 @@ function renderHeatmap() {
       .text(count || '0');
 
     rect.on('mousemove', evt => {
-      showTooltip(evt, `<strong>${mon} 1689</strong>${count.toLocaleString()} letters`);
+      showTooltip(evt, `<strong>${mon} 1689</strong><br>${count.toLocaleString()} letters`);
     }).on('mouseleave', hideTooltip);
   });
 
@@ -1124,7 +1123,7 @@ function renderPersonNetwork(centerName) {
     .attr('stroke-opacity', 0.55)
     .on('mousemove', (evt, d) => {
       showTooltip(evt,
-        `<strong>${d.source.id || d.source} ↔ ${d.target.id || d.target}</strong>${d.weight} letter${d.weight>1?'s':''}<br>Direction: ${d.dir}`
+        `<strong>${d.source.id || d.source} ↔ ${d.target.id || d.target}</strong><br>${d.weight} letter${d.weight>1?'s':''}<br>Direction: ${d.dir}`
       );
     }).on('mouseleave', hideTooltip);
 
@@ -1152,7 +1151,7 @@ function renderPersonNetwork(centerName) {
     })
     .on('mousemove', (evt, d) => {
       const s = APP.personSent[d.id]||0, r = APP.personRecv[d.id]||0;
-      showTooltip(evt, `<strong>${d.id}</strong>Sent: ${s} | Recv: ${r}<br>Click to explore`);
+      showTooltip(evt, `<strong>${d.id}</strong><br>Sent: ${s} | Recv: ${r}<br>Click to explore`);
     }).on('mouseleave', hideTooltip);
 
   node.append('text')
@@ -1242,7 +1241,7 @@ function renderTopNetwork() {
     .attr('stroke-opacity',0.45)
     .on('mousemove',(evt,d)=>{
       const a=d.source.id||d.source, b=d.target.id||d.target;
-      showTooltip(evt,`<strong>${a} ↔ ${b}</strong>${d.weight} letters`);
+      showTooltip(evt,`<strong>${a} ↔ ${b}</strong><br>${d.weight} letters`);
     }).on('mouseleave',hideTooltip);
 
   const node = g.selectAll('.node').data(nodes).join('g').attr('class','node')
@@ -1263,7 +1262,7 @@ function renderTopNetwork() {
       updatePersonStats(d.id);
     })
     .on('mousemove',(evt,d)=>{
-      showTooltip(evt,`<strong>${d.id}</strong>Total: ${d.total}<br>Click to explore`);
+      showTooltip(evt,`<strong>${d.id}</strong><br>Total: ${d.total}<br>Click to explore`);
     }).on('mouseleave',hideTooltip);
 
   node.append('text')
@@ -1325,7 +1324,7 @@ function renderPlaceBarChart(containerId, counts, topN, _title) {
     .attr('width',d=>x(d.count)).attr('height',y.bandwidth())
     .attr('rx',3).attr('fill','var(--blue)').attr('opacity',0.75)
     .style('cursor','pointer')
-    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${d.place}</strong>${d.count.toLocaleString()} letters`))
+    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${d.place}</strong><br>${d.count.toLocaleString()} letters`))
     .on('mouseleave',hideTooltip);
 
   g.selectAll('.count-label').data(data).join('text')
@@ -1412,14 +1411,14 @@ function renderPlaceNetwork() {
     .attr('stroke-width',d=>linkWidthScale(d.weight))
     .on('mousemove',(evt,d)=>{
       const a=d.source.name||d.source, b=d.target.name||d.target;
-      showTooltip(evt,`<strong>${a} ↔ ${b}</strong>${d.weight} letters`);
+      showTooltip(evt,`<strong>${a} ↔ ${b}</strong><br>${d.weight} letters`);
     }).on('mouseleave',hideTooltip);
 
   const node = g.selectAll('.node').data(nodes).join('g').attr('class','node')
     .call(d3.drag()
-      .on('start',(evt,d)=>{if(!evt.active)psim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('start',(evt,d)=>{if(!evt.active)placeSimulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
       .on('drag',(evt,d)=>{d.fx=evt.x;d.fy=evt.y;})
-      .on('end',(evt,d)=>{if(!evt.active)psim.alphaTarget(0);d.fx=null;d.fy=null;})
+      .on('end',(evt,d)=>{if(!evt.active)placeSimulation.alphaTarget(0);d.fx=null;d.fy=null;})
     );
 
   node.append('circle')
@@ -1427,7 +1426,7 @@ function renderPlaceNetwork() {
     .attr('fill','var(--card2)')
     .attr('stroke','var(--gold)').attr('stroke-width',1.5)
     .style('cursor','pointer')
-    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${d.name}</strong>Activity: ${d.total.toLocaleString()}`))
+    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${d.name}</strong><br>Activity: ${d.total.toLocaleString()}`))
     .on('mouseleave',hideTooltip);
 
   node.append('text')
@@ -1436,7 +1435,7 @@ function renderPlaceNetwork() {
     .attr('fill','var(--muted)').attr('font-size','10px')
     .text(d=>d.name.length>16?d.name.slice(0,14)+'…':d.name);
 
-  const psim = d3.forceSimulation(nodes)
+  const placeSimulation = d3.forceSimulation(nodes)
     .force('link',d3.forceLink(placeLinks).id(d=>d.name).distance(80))
     .force('charge',d3.forceManyBody().strength(-160))
     .force('center',d3.forceCenter(W/2,H/2))
