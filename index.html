@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letter Network Explorer — Scotland 1688–1692</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --card2: #1c2128;
+      --gold: #e8c468;
+      --gold-dim: #c9a84c;
+      --blue: #58a6ff;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --green: #3fb950;
+      --red: #f85149;
+      --purple: #bc8cff;
+      --orange: #ffa657;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Loading Overlay ── */
+    #loading-overlay {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999;
+      gap: 20px;
+    }
+    #loading-overlay p { color: var(--muted); font-size: 0.95rem; letter-spacing: 0.04em; }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Header ── */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 40px 20px;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    header h1 span { color: var(--gold); }
+    header p {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 400;
+      max-width: 720px;
+      line-height: 1.5;
+    }
+
+    /* ── Tab Nav ── */
+    nav {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      gap: 4px;
+    }
+    .tab-btn {
+      background: none; border: none;
+      color: var(--muted);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      padding: 14px 18px 12px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
+      position: relative;
+      top: 1px;
+      letter-spacing: 0.01em;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    /* ── Main Layout ── */
+    main { padding: 32px 40px; max-width: 1400px; margin: 0 auto; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Stat Cards ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      display: flex; align-items: flex-start; gap: 16px;
+      transition: border-color 0.2s;
+    }
+    .stat-card:hover { border-color: var(--gold); }
+    .stat-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25rem;
+      flex-shrink: 0;
+    }
+    .stat-icon.gold { background: rgba(232,196,104,0.12); }
+    .stat-icon.blue { background: rgba(88,166,255,0.12); }
+    .stat-icon.green { background: rgba(63,185,80,0.12); }
+    .stat-icon.purple { background: rgba(188,140,255,0.12); }
+    .stat-info .label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+    .stat-info .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    /* ── Section Headers ── */
+    .section-header {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-header::before {
+      content: '';
+      display: inline-block;
+      width: 3px; height: 16px;
+      background: var(--gold);
+      border-radius: 2px;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Two Column ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+
+    /* ── Tables ── */
+    .rank-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .rank-table th {
+      color: var(--muted);
+      font-weight: 500;
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+    }
+    .rank-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      color: var(--text);
+    }
+    .rank-table tr:last-child td { border-bottom: none; }
+    .rank-table tr:hover td { background: rgba(255,255,255,0.03); }
+    .rank-num { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 24px; }
+    .rank-count { color: var(--gold); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+    .rank-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── SVG Charts ── */
+    svg text { font-family: 'Inter', sans-serif; }
+    .axis text { fill: var(--muted); font-size: 11px; }
+    .axis path, .axis line { stroke: var(--border); }
+    .grid line { stroke: var(--border); stroke-opacity: 0.5; stroke-dasharray: 2,3; }
+    .grid path { stroke-width: 0; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed;
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      color: var(--text);
+      pointer-events: none;
+      z-index: 1000;
+      max-width: 240px;
+      line-height: 1.5;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      display: none;
+    }
+    #tooltip strong { color: var(--gold); display: block; margin-bottom: 2px; }
+
+    /* ── Tab 3: People Explorer ── */
+    .people-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 20px;
+      align-items: start;
+    }
+    .people-controls {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+    select.person-select {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.84rem;
+      padding: 8px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      flex: 1;
+      max-width: 420px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    select.person-select:hover, select.person-select:focus { border-color: var(--gold); }
+    .btn {
+      background: rgba(232,196,104,0.1);
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: rgba(232,196,104,0.18); }
+    .stats-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .stats-panel h3 { font-size: 0.88rem; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+    .stat-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .stat-row .k { font-size: 0.78rem; color: var(--muted); }
+    .stat-row .v { font-size: 0.9rem; color: var(--text); font-weight: 600; max-width: 140px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Network Graph ── */
+    #network-svg, #place-network-svg { width: 100%; cursor: grab; }
+    #network-svg:active, #place-network-svg:active { cursor: grabbing; }
+    .network-container {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .node circle { cursor: pointer; transition: opacity 0.2s; }
+    .node text { pointer-events: none; user-select: none; }
+    .link { stroke-opacity: 0.6; }
+
+    /* ── Legend ── */
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+    /* ── Heatmap ── */
+    .heatmap-cell { rx: 3; ry: 3; cursor: pointer; transition: opacity 0.15s; }
+    .heatmap-cell:hover { opacity: 0.8; }
+
+    /* ── Routes Table ── */
+    .routes-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .routes-table th { color: var(--muted); font-weight: 500; text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; }
+    .routes-table td { padding: 9px 12px; border-bottom: 1px solid rgba(48,54,61,0.5); }
+    .routes-table tr:last-child td { border-bottom: none; }
+    .routes-table tr:hover td { background: rgba(255,255,255,0.03); }
+    .route-arrow { color: var(--gold); font-weight: 600; }
+    .route-count { color: var(--blue); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    @media (max-width: 900px) {
+      main { padding: 20px 16px; }
+      header { padding: 16px; }
+      nav { padding: 0 16px; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .two-col, .three-col { grid-template-columns: 1fr; }
+      .people-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p>Loading letter data…</p>
+</div>
+
+<!-- Header -->
+<header>
+  <h1>Exploring <span>Letter Networks</span>: Scotland during Revolution</h1>
+  <p>Mapping correspondence between individuals across Scotland, England, and Ireland during the 1688–1692 Revolution — drawn from manuscript and printed letter collections</p>
+</header>
+
+<!-- Tab Navigation -->
+<nav>
+  <button class="tab-btn active" data-tab="tab1">Overview</button>
+  <button class="tab-btn" data-tab="tab2">Correspondence Progression</button>
+  <button class="tab-btn" data-tab="tab3">People Explorer</button>
+  <button class="tab-btn" data-tab="tab4">Locations</button>
+</nav>
+
+<main>
+
+  <!-- ══ TAB 1: Overview ══ -->
+  <div id="tab1" class="tab-panel active">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-icon gold">✉</div>
+        <div class="stat-info"><div class="label">Total Letters</div><div class="value" id="stat-total">—</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">👥</div>
+        <div class="stat-info"><div class="label">Unique People</div><div class="value" id="stat-people">—</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">📅</div>
+        <div class="stat-info"><div class="label">Years Covered</div><div class="value" style="font-size:1.3rem" id="stat-years">1688 – 1692</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">📚</div>
+        <div class="stat-info"><div class="label">Collections</div><div class="value" id="stat-collections">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">Letters per Year</div>
+      <div id="year-bar-chart"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="section-header">Top 10 Senders</div>
+        <div id="top-senders-table"></div>
+      </div>
+      <div class="card">
+        <div class="section-header">Top 10 Receivers</div>
+        <div id="top-receivers-table"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 2: Correspondence Progression ══ -->
+  <div id="tab2" class="tab-panel">
+    <div class="card">
+      <div class="section-header">Letters per Year by Collection</div>
+      <div id="stacked-bar-chart"></div>
+      <div id="stacked-legend" class="legend" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">Monthly Activity — 1689</div>
+      <div id="heatmap-chart"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">Correspondence Span — Top 20 People</div>
+      <div id="span-chart"></div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 3: People Explorer ══ -->
+  <div id="tab3" class="tab-panel">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="people-controls">
+        <select class="person-select" id="person-select">
+          <option value="">Loading…</option>
+        </select>
+        <button class="btn" id="top-network-btn">Show Top Network (Top 50)</button>
+      </div>
+    </div>
+    <div class="people-layout">
+      <div>
+        <div class="network-container">
+          <svg id="network-svg" height="520"></svg>
+        </div>
+      </div>
+      <div class="stats-panel" id="person-stats">
+        <h3>Person Stats</h3>
+        <div class="stat-row"><span class="k">Total Sent</span><span class="v" id="ps-sent">—</span></div>
+        <div class="stat-row"><span class="k">Total Received</span><span class="v" id="ps-recv">—</span></div>
+        <div class="stat-row"><span class="k">Total Letters</span><span class="v" id="ps-total">—</span></div>
+        <div class="stat-row"><span class="k">Top Correspondent</span><span class="v" id="ps-top">—</span></div>
+        <div class="stat-row"><span class="k">Active Years</span><span class="v" id="ps-years">—</span></div>
+        <div class="stat-row"><span class="k">Collections</span><span class="v" id="ps-colls">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB 4: Locations ══ -->
+  <div id="tab4" class="tab-panel">
+    <div class="two-col">
+      <div class="card">
+        <div class="section-header">Top 15 Sending Places</div>
+        <div id="from-place-chart"></div>
+      </div>
+      <div class="card">
+        <div class="section-header">Top 10 Receiving Places</div>
+        <div id="to-place-chart"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="section-header">Top 15 Letter Routes</div>
+        <div id="routes-table"></div>
+      </div>
+      <div class="card">
+        <div class="section-header">Place Network — Top 20 Nodes</div>
+        <div class="network-container">
+          <svg id="place-network-svg" height="420"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONSTANTS & UTILITIES
+// ══════════════════════════════════════════════════════════
+
+const NAME_ALIASES = {
+  'Carwhin': 'Colin Campbell of Carwhin',
+  'Balcarres': 'Colin Lindsay, Earl of Balcarres',
+  'Barcaldine': 'Alexander Campbell of Barcaldine',
+  'Alexander Campbell of Barcardine': 'Alexander Campbell of Barcaldine',
+  'Breadalbane ': 'Breadalbane',
+  'Melville ': 'Melville',
+  'Melville  ': 'Melville',
+  'Crawford ': 'Crawford',
+  'Cardross ': 'Cardross',
+  'Atholl ': 'Atholl',
+  'Cassillis ': 'Cassillis',
+  'Church of Scotland ': 'Church of Scotland',
+  'Anstruther ': 'Anstruther',
+  'King James ': 'King James',
+  'King William ': 'King William',
+  'Group ': 'Group',
+  'Person ': 'Person',
+};
+
+function normalizeName(name) {
+  if (!name) return '';
+  const trimmed = name.trim();
+  return NAME_ALIASES[trimmed] ?? trimmed;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function parseDate(str) {
+  if (!str || str.trim() === '' || str === 'undated' || str === 'n.d.') return { year: null, month: null };
+  str = str.trim().replace(/^c\.?\s*/i, '');
+
+  // "1689, Jan 20" or "1689, Jan"
+  let m = str.match(/^(\d{4}),\s*([A-Za-z]+)/);
+  if (m) {
+    return { year: +m[1], month: MONTH_NUMS[m[2].toLowerCase().slice(0,3)] || null };
+  }
+
+  // "June-July 1689" or "June 1689"
+  m = str.match(/([A-Za-z]+).*?(\d{4})/);
+  if (m) {
+    return { year: +m[2], month: MONTH_NUMS[m[1].toLowerCase().slice(0,3)] || null };
+  }
+
+  // "1/20/1689"
+  m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return { year: +m[3], month: +m[1] };
+
+  // "09.08.1690"
+  m = str.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (m) return { year: +m[3], month: +m[1] };
+
+  // year only
+  m = str.match(/^(\d{4})$/);
+  if (m) return { year: +m[1], month: null };
+
+  return { year: null, month: null };
+}
+
+const COLLECTION_ABBR = {
+  'Correspondence of the Dukes of Hamilton and Brandon': 'Hamilton & Brandon',
+  'Leven & Melville Papers': 'Melville Papers',
+  'Leven and Melville NRS': 'Melville NRS',
+  'Breadalbane Correspondence': 'Breadalbane',
+  'Hamilton Manuscripts Printed': 'Hamilton Printed',
+  'Jacobite Papers': 'Jacobite Papers',
+};
+function abbrevColl(name) { return COLLECTION_ABBR[name] || name; }
+
+const MONTH_NUMS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const YEARS = [1688, 1689, 1690, 1691, 1692];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const COLL_COLORS = ['#e8c468','#58a6ff','#3fb950','#bc8cff','#ffa657','#6e7681'];
+
+// ══════════════════════════════════════════════════════════
+// APP GLOBAL STATE
+// ══════════════════════════════════════════════════════════
+const APP = {
+  rows: [],
+  totalLetters: 0,
+  uniquePeople: new Set(),
+  uniqueCollections: new Set(),
+  // per-year counts
+  yearCounts: {},        // { 1688: N, ... }
+  topSenders: [],        // [{name, count}]
+  topReceivers: [],
+  // tab2
+  stackedData: [],       // [{year, colls: {abbrev: N}}]
+  topColls: [],          // top 5 collection names (original)
+  monthCounts1689: {},   // {1: N, ...}
+  spanData: [],          // [{name, first, last, total}]
+  // tab3
+  personSent: {},        // name -> count
+  personRecv: {},
+  pairCounts: {},        // 'A|||B' -> count (normalized, directed A->B)
+  personYears: {},       // name -> Set of years
+  personColls: {},       // name -> Set of colls
+  allPeople: [],         // [{name, total}] sorted
+  // tab4
+  fromPlaceCounts: {},
+  toPlaceCounts: {},
+  routeCounts: {},       // 'A→B' -> count
+};
+
+const renderedTabs = new Set();
+
+// ══════════════════════════════════════════════════════════
+// PROCESS DATA
+// ══════════════════════════════════════════════════════════
+function processData(rows) {
+  APP.rows = rows;
+  APP.totalLetters = rows.length;
+
+  // Year counts
+  YEARS.forEach(y => { APP.yearCounts[y] = 0; });
+
+  // Collection stacked data init
+  const collYearMap = {}; // year -> {coll: count}
+  YEARS.forEach(y => { collYearMap[y] = {}; });
+
+  const collTotals = {};
+
+  rows.forEach(row => {
+    const from = normalizeName(row['From Name']);
+    const to   = normalizeName(row['To Name']);
+    const coll = (row['Identifier'] || '').trim();
+    const fp   = (row['From Place'] || '').trim();
+    const tp   = (row['To Place']   || '').trim();
+    const { year, month } = parseDate(row['Date']);
+
+    if (from) APP.uniquePeople.add(from);
+    if (to)   APP.uniquePeople.add(to);
+    if (coll) APP.uniqueCollections.add(coll);
+
+    // Year counts
+    if (year && APP.yearCounts[year] !== undefined) {
+      APP.yearCounts[year]++;
+    }
+
+    // Stacked by collection
+    if (year && YEARS.includes(year) && coll) {
+      if (!collYearMap[year][coll]) collYearMap[year][coll] = 0;
+      collYearMap[year][coll]++;
+      collTotals[coll] = (collTotals[coll] || 0) + 1;
+    }
+
+    // Monthly 1689
+    if (year === 1689 && month) {
+      APP.monthCounts1689[month] = (APP.monthCounts1689[month] || 0) + 1;
+    }
+
+    // Sender / receiver
+    if (from) APP.personSent[from] = (APP.personSent[from] || 0) + 1;
+    if (to)   APP.personRecv[to]   = (APP.personRecv[to]   || 0) + 1;
+
+    // Pair
+    if (from && to) {
+      const key = from + '|||' + to;
+      APP.pairCounts[key] = (APP.pairCounts[key] || 0) + 1;
+    }
+
+    // Person years
+    if (year) {
+      if (from) { if (!APP.personYears[from]) APP.personYears[from] = new Set(); APP.personYears[from].add(year); }
+      if (to)   { if (!APP.personYears[to])   APP.personYears[to]   = new Set(); APP.personYears[to].add(year); }
+    }
+
+    // Person collections
+    if (coll) {
+      if (from) { if (!APP.personColls[from]) APP.personColls[from] = new Set(); APP.personColls[from].add(coll); }
+      if (to)   { if (!APP.personColls[to])   APP.personColls[to]   = new Set(); APP.personColls[to].add(coll); }
+    }
+
+    // Places
+    if (fp) APP.fromPlaceCounts[fp] = (APP.fromPlaceCounts[fp] || 0) + 1;
+    if (tp) APP.toPlaceCounts[tp]   = (APP.toPlaceCounts[tp]   || 0) + 1;
+
+    // Routes
+    if (fp && tp) {
+      const rk = fp + '→' + tp;
+      APP.routeCounts[rk] = (APP.routeCounts[rk] || 0) + 1;
+    }
+  });
+
+  // Top collections
+  APP.topColls = Object.entries(collTotals)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0,5)
+    .map(d => d[0]);
+
+  // Build stacked data
+  APP.stackedData = YEARS.map(y => {
+    const entry = { year: y };
+    let otherCount = 0;
+    const yearData = collYearMap[y];
+    APP.topColls.forEach(c => { entry[abbrevColl(c)] = yearData[c] || 0; });
+    Object.keys(yearData).forEach(c => {
+      if (!APP.topColls.includes(c)) otherCount += yearData[c];
+    });
+    entry['Other'] = otherCount;
+    return entry;
+  });
+
+  // Span data
+  const allPeopleSet = new Set([...Object.keys(APP.personSent), ...Object.keys(APP.personRecv)]);
+  const spanArr = [];
+  allPeopleSet.forEach(name => {
+    const total = (APP.personSent[name] || 0) + (APP.personRecv[name] || 0);
+    const yrs = APP.personYears[name] ? [...APP.personYears[name]] : [];
+    if (yrs.length > 0) {
+      spanArr.push({ name, total, first: Math.min(...yrs), last: Math.max(...yrs) });
+    }
+  });
+  APP.spanData = spanArr.sort((a,b) => b.total - a.total).slice(0, 20);
+
+  // All people sorted
+  APP.allPeople = [];
+  allPeopleSet.forEach(name => {
+    const total = (APP.personSent[name] || 0) + (APP.personRecv[name] || 0);
+    APP.allPeople.push({ name, total, sent: APP.personSent[name] || 0, recv: APP.personRecv[name] || 0 });
+  });
+  APP.allPeople.sort((a,b) => b.total - a.total);
+
+  // Top senders / receivers
+  APP.topSenders   = Object.entries(APP.personSent).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([name,count])=>({name,count}));
+  APP.topReceivers = Object.entries(APP.personRecv).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([name,count])=>({name,count}));
+}
+
+// ══════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════
+const tooltip = document.getElementById('tooltip');
+function showTooltip(evt, html) {
+  tooltip.innerHTML = html;
+  tooltip.style.display = 'block';
+  positionTooltip(evt);
+}
+function positionTooltip(evt) {
+  const x = evt.clientX, y = evt.clientY;
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  let left = x + 14, top = y - 10;
+  if (left + tw > vw - 10) left = x - tw - 14;
+  if (top + th > vh - 10) top = vh - th - 10;
+  tooltip.style.left = left + 'px';
+  tooltip.style.top  = top  + 'px';
+}
+function hideTooltip() { tooltip.style.display = 'none'; }
+
+// ══════════════════════════════════════════════════════════
+// TAB 1: OVERVIEW
+// ══════════════════════════════════════════════════════════
+function renderTab1() {
+  document.getElementById('stat-total').textContent       = APP.totalLetters.toLocaleString();
+  document.getElementById('stat-people').textContent      = APP.uniquePeople.size.toLocaleString();
+  document.getElementById('stat-collections').textContent = APP.uniqueCollections.size.toLocaleString();
+
+  renderYearBarChart();
+  renderRankTable('top-senders-table',   APP.topSenders,   '#', 'Name', 'Letters Sent');
+  renderRankTable('top-receivers-table', APP.topReceivers, '#', 'Name', 'Letters Received');
+}
+
+function renderYearBarChart() {
+  const container = document.getElementById('year-bar-chart');
+  container.innerHTML = '';
+  const W = container.clientWidth || 700;
+  const margin = { top: 20, right: 30, bottom: 40, left: 55 };
+  const width  = W - margin.left - margin.right;
+  const height = 260 - margin.top - margin.bottom;
+
+  const svg = d3.select(container).append('svg')
+    .attr('width', W).attr('height', 260);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const data = YEARS.map(y => ({ year: y, count: APP.yearCounts[y] || 0 }));
+  const maxCount = d3.max(data, d => d.count);
+
+  const x = d3.scaleBand().domain(YEARS.map(String)).range([0, width]).padding(0.3);
+  const y = d3.scaleLinear().domain([0, maxCount * 1.1]).range([height, 0]);
+
+  // Grid lines
+  g.append('g').attr('class','grid')
+    .call(d3.axisLeft(y).tickSize(-width).tickFormat('').ticks(5));
+
+  // Bars
+  const bars = g.selectAll('.bar').data(data).join('rect')
+    .attr('class','bar')
+    .attr('x', d => x(String(d.year)))
+    .attr('y', d => y(d.count))
+    .attr('width', x.bandwidth())
+    .attr('height', d => height - y(d.count))
+    .attr('rx', 4).attr('ry', 4)
+    .attr('fill', 'var(--gold)')
+    .attr('opacity', 0.85)
+    .style('cursor','pointer');
+
+  bars.on('mousemove', (evt, d) => {
+    showTooltip(evt, `<strong>${escHtml(String(d.year))}</strong><br>${d.count.toLocaleString()} letters`);
+  }).on('mouseleave', hideTooltip);
+
+  // Count labels on bars
+  g.selectAll('.bar-label').data(data).join('text')
+    .attr('class','bar-label')
+    .attr('x', d => x(String(d.year)) + x.bandwidth()/2)
+    .attr('y', d => y(d.count) - 5)
+    .attr('text-anchor','middle')
+    .attr('fill','var(--muted)')
+    .attr('font-size','11px')
+    .text(d => d.count ? d.count.toLocaleString() : '');
+
+  // Axes
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${height})`).call(d3.axisBottom(x).tickSizeOuter(0));
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(',d')));
+
+  // Y axis label
+  g.append('text').attr('transform','rotate(-90)').attr('y',-44).attr('x',-height/2)
+    .attr('text-anchor','middle').attr('fill','var(--muted)').attr('font-size','11px').text('Letters');
+}
+
+function renderRankTable(containerId, data, rankHead, nameHead, countHead) {
+  const tbody = data.map((d,i) => {
+    const safeName = escHtml(d.name) || '(Unknown)';
+    return `<tr>
+      <td class="rank-num">${i+1}</td>
+      <td class="rank-name" title="${safeName}">${safeName}</td>
+      <td class="rank-count">${d.count.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById(containerId).innerHTML = `
+    <table class="rank-table">
+      <thead><tr><th>${rankHead}</th><th>${nameHead}</th><th style="text-align:right">${countHead}</th></tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 2: CORRESPONDENCE PROGRESSION
+// ══════════════════════════════════════════════════════════
+function renderTab2() {
+  renderStackedBar();
+  renderHeatmap();
+  renderSpanChart();
+}
+
+function renderStackedBar() {
+  const container = document.getElementById('stacked-bar-chart');
+  container.innerHTML = '';
+  const legendEl = document.getElementById('stacked-legend');
+  legendEl.innerHTML = '';
+
+  const W = container.clientWidth || 700;
+  const margin = { top: 20, right: 20, bottom: 40, left: 55 };
+  const width  = W - margin.left - margin.right;
+  const height = 280 - margin.top - margin.bottom;
+
+  const collKeys = [...APP.topColls.map(abbrevColl), 'Other'];
+  const color = d3.scaleOrdinal().domain(collKeys).range(COLL_COLORS);
+
+  const stack = d3.stack().keys(collKeys)(APP.stackedData);
+
+  const x = d3.scaleBand().domain(YEARS.map(String)).range([0, width]).padding(0.3);
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(APP.stackedData, d => collKeys.reduce((s,k) => s + (d[k]||0), 0)) * 1.1])
+    .range([height, 0]);
+
+  const svg = d3.select(container).append('svg').attr('width', W).attr('height', 280);
+  const g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+
+  g.append('g').attr('class','grid')
+    .call(d3.axisLeft(y).tickSize(-width).tickFormat('').ticks(5));
+
+  const layer = g.selectAll('.layer').data(stack).join('g')
+    .attr('class','layer')
+    .attr('fill', d => color(d.key));
+
+  layer.selectAll('rect').data(d => d.map(v => ({ ...v, key: d.key }))).join('rect')
+    .attr('x', d => x(String(d.data.year)))
+    .attr('y', d => y(d[1]))
+    .attr('height', d => Math.max(0, y(d[0]) - y(d[1])))
+    .attr('width', x.bandwidth())
+    .attr('rx', 2)
+    .style('cursor','pointer')
+    .on('mousemove', (evt, d) => {
+      const val = (d[1] - d[0]);
+      showTooltip(evt, `<strong>${escHtml(String(d.key))} — ${escHtml(String(d.data.year))}</strong><br>${val.toLocaleString()} letters`);
+    })
+    .on('mouseleave', hideTooltip);
+
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${height})`).call(d3.axisBottom(x).tickSizeOuter(0));
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(',d')));
+
+  // Legend
+  collKeys.forEach((k,i) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-swatch" style="background:${COLL_COLORS[i]}"></div><span>${escHtml(k)}</span>`;
+    legendEl.appendChild(item);
+  });
+}
+
+function renderHeatmap() {
+  const container = document.getElementById('heatmap-chart');
+  container.innerHTML = '';
+  const W = container.clientWidth || 700;
+  const cellW = Math.floor((W - 80) / 12);
+  const cellH = 56;
+  const marginL = 10, marginT = 30, marginB = 30;
+  const svgH = marginT + cellH + marginB;
+
+  const maxCount = Math.max(1, ...Object.values(APP.monthCounts1689));
+  const colorScale = d3.scaleLinear()
+    .domain([0, maxCount])
+    .range(['#1c2128', '#e8c468']);
+
+  const svg = d3.select(container).append('svg')
+    .attr('width', W).attr('height', svgH);
+
+  MONTHS.forEach((mon, i) => {
+    const count = APP.monthCounts1689[i+1] || 0;
+    const cx = marginL + i * cellW;
+
+    svg.append('text')
+      .attr('x', cx + cellW/2).attr('y', marginT - 8)
+      .attr('text-anchor','middle')
+      .attr('fill','var(--muted)').attr('font-size','11px')
+      .text(mon);
+
+    const rect = svg.append('rect')
+      .attr('class','heatmap-cell')
+      .attr('x', cx + 3).attr('y', marginT)
+      .attr('width', cellW - 6).attr('height', cellH)
+      .attr('rx', 5).attr('ry', 5)
+      .attr('fill', colorScale(count));
+
+    svg.append('text')
+      .attr('x', cx + cellW/2).attr('y', marginT + cellH/2 + 5)
+      .attr('text-anchor','middle')
+      .attr('fill', count > maxCount * 0.4 ? '#0d1117' : '#8b949e')
+      .attr('font-size','13px')
+      .attr('font-weight','600')
+      .text(count || '0');
+
+    rect.on('mousemove', evt => {
+      showTooltip(evt, `<strong>${escHtml(mon)} 1689</strong><br>${count.toLocaleString()} letters`);
+    }).on('mouseleave', hideTooltip);
+  });
+
+  // Color scale bar
+  const barW = 120, barH = 8;
+  const barX = W - barW - 20, barY = svgH - marginB + 6;
+  const defs = svg.append('defs');
+  const grad = defs.append('linearGradient').attr('id','hm-grad');
+  grad.append('stop').attr('offset','0%').attr('stop-color','#1c2128');
+  grad.append('stop').attr('offset','100%').attr('stop-color','#e8c468');
+  svg.append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH)
+    .attr('rx',3).attr('fill','url(#hm-grad)');
+  svg.append('text').attr('x',barX-4).attr('y',barY+8).attr('text-anchor','end')
+    .attr('fill','var(--muted)').attr('font-size','10px').text('0');
+  svg.append('text').attr('x',barX+barW+4).attr('y',barY+8).attr('text-anchor','start')
+    .attr('fill','var(--muted)').attr('font-size','10px').text(maxCount);
+}
+
+function renderSpanChart() {
+  const container = document.getElementById('span-chart');
+  container.innerHTML = '';
+  const W = container.clientWidth || 700;
+  const margin = { top: 10, right: 80, bottom: 30, left: 200 };
+  const rowH = 22;
+  const height = APP.spanData.length * rowH + margin.top + margin.bottom;
+  const width  = W - margin.left - margin.right;
+
+  const svg = d3.select(container).append('svg').attr('width',W).attr('height',height);
+  const g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([1688, 1692]).range([0, width]);
+  const y = d3.scaleBand().domain(APP.spanData.map(d=>d.name)).range([0,height-margin.top-margin.bottom]).padding(0.25);
+
+  // Gridlines
+  g.append('g').attr('class','grid')
+    .call(d3.axisBottom(x).tickValues(YEARS).tickSize(height-margin.top-margin.bottom).tickFormat('').tickSizeOuter(0))
+    .attr('transform','translate(0,0)');
+
+  // Bars
+  APP.spanData.forEach(d => {
+    const bx = x(d.first);
+    const bw = Math.max(6, x(d.last) - x(d.first));
+    const by = y(d.name);
+    const bh = y.bandwidth();
+
+    g.append('rect')
+      .attr('x', bx).attr('y', by).attr('width', bw).attr('height', bh)
+      .attr('rx', 3).attr('fill','var(--blue)').attr('opacity',0.75)
+      .style('cursor','pointer')
+      .on('mousemove', evt => {
+        showTooltip(evt,
+          `<strong>${escHtml(d.name)}</strong><br>First: ${d.first}<br>Last: ${d.last}<br>Total: ${d.total.toLocaleString()}`);
+      })
+      .on('mouseleave', hideTooltip);
+
+    // Dot for first year
+    g.append('circle').attr('cx',bx).attr('cy',by+bh/2).attr('r',3)
+      .attr('fill','var(--gold)').attr('pointer-events','none');
+    // Dot for last year
+    g.append('circle').attr('cx',bx+bw).attr('cy',by+bh/2).attr('r',3)
+      .attr('fill','var(--gold)').attr('pointer-events','none');
+
+    // Count label
+    g.append('text')
+      .attr('x', bx+bw+6).attr('y', by+bh/2+4)
+      .attr('fill','var(--muted)').attr('font-size','10px')
+      .text(d.total);
+  });
+
+  // Y axis (names)
+  g.append('g').attr('class','axis')
+    .call(d3.axisLeft(y).tickSizeOuter(0))
+    .selectAll('text')
+    .attr('fill','var(--text)')
+    .attr('font-size','11px')
+    .each(function(d) {
+      const el = d3.select(this);
+      if (d.length > 26) el.text(d.slice(0,24)+'…');
+    });
+
+  // X axis
+  g.append('g').attr('class','axis')
+    .attr('transform',`translate(0,${height-margin.top-margin.bottom})`)
+    .call(d3.axisBottom(x).tickValues(YEARS).tickFormat(d3.format('d')).tickSizeOuter(0));
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 3: PEOPLE EXPLORER
+// ══════════════════════════════════════════════════════════
+let networkSimulation = null;
+
+function renderTab3() {
+  populatePersonSelect();
+  setupNetworkControls();
+  // Render default: top person
+  if (APP.allPeople.length > 0) {
+    renderPersonNetwork(APP.allPeople[0].name);
+    updatePersonStats(APP.allPeople[0].name);
+  }
+}
+
+function populatePersonSelect() {
+  const sel = document.getElementById('person-select');
+  sel.innerHTML = APP.allPeople.map(p =>
+    `<option value="${escHtml(p.name)}">${escHtml(p.name)} (${p.total})</option>`
+  ).join('');
+}
+
+function setupNetworkControls() {
+  const sel = document.getElementById('person-select');
+  sel.onchange = () => {
+    if (sel.value) {
+      renderPersonNetwork(sel.value);
+      updatePersonStats(sel.value);
+    }
+  };
+  document.getElementById('top-network-btn').onclick = () => {
+    renderTopNetwork();
+    // clear stats
+    ['ps-sent','ps-recv','ps-total','ps-top','ps-years','ps-colls'].forEach(id => {
+      document.getElementById(id).textContent = '—';
+    });
+  };
+}
+
+function updatePersonStats(name) {
+  const sent  = APP.personSent[name]  || 0;
+  const recv  = APP.personRecv[name]  || 0;
+  const total = sent + recv;
+  const yrs   = APP.personYears[name] ? [...APP.personYears[name]].sort() : [];
+  const colls = APP.personColls[name] ? APP.personColls[name].size : 0;
+
+  // Top correspondent
+  let topCorr = '—', topCount = 0;
+  Object.entries(APP.pairCounts).forEach(([key, cnt]) => {
+    const [a, b] = key.split('|||');
+    if ((a === name || b === name) && cnt > topCount) {
+      topCount = cnt;
+      topCorr = a === name ? b : a;
+    }
+  });
+
+  document.getElementById('ps-sent').textContent  = sent.toLocaleString();
+  document.getElementById('ps-recv').textContent  = recv.toLocaleString();
+  document.getElementById('ps-total').textContent = total.toLocaleString();
+  document.getElementById('ps-top').textContent   = topCorr;
+  document.getElementById('ps-years').textContent = yrs.length ? `${yrs[0]} – ${yrs[yrs.length-1]}` : '—';
+  document.getElementById('ps-colls').textContent = colls;
+}
+
+function renderPersonNetwork(centerName) {
+  if (networkSimulation) { networkSimulation.stop(); networkSimulation = null; }
+  const svgEl = document.getElementById('network-svg');
+  svgEl.innerHTML = '';
+  const W = svgEl.parentElement.clientWidth || 700;
+  const H = 520;
+  svgEl.setAttribute('width', W);
+
+  // Build graph data
+  const neighborMap = {}; // name -> {sent, recv}
+  Object.entries(APP.pairCounts).forEach(([key, cnt]) => {
+    const [a, b] = key.split('|||');
+    if (a === centerName) {
+      if (!neighborMap[b]) neighborMap[b] = { sent: 0, recv: 0 };
+      neighborMap[b].sent += cnt;
+    } else if (b === centerName) {
+      if (!neighborMap[a]) neighborMap[a] = { sent: 0, recv: 0 };
+      neighborMap[a].recv += cnt;
+    }
+  });
+
+  // Sort by total, take top 30
+  const sorted = Object.entries(neighborMap)
+    .map(([name, d]) => ({ name, total: d.sent + d.recv, sent: d.sent, recv: d.recv }))
+    .sort((a,b) => b.total - a.total)
+    .slice(0, 30);
+
+  const nodes = [
+    { id: centerName, isCenter: true, total: (APP.personSent[centerName]||0)+(APP.personRecv[centerName]||0) },
+    ...sorted.map(d => ({ id: d.name, isCenter: false, total: d.total }))
+  ];
+
+  const links = sorted.map(d => {
+    const hasSent = d.sent > 0;
+    const hasRecv = d.recv > 0;
+    let dir = 'both';
+    if (hasSent && !hasRecv) dir = 'out';
+    if (!hasSent && hasRecv) dir = 'in';
+    return { source: centerName, target: d.name, weight: d.total, dir };
+  });
+
+  const totalMax = d3.max(nodes, d => d.total) || 1;
+  const sizeScale = d3.scaleSqrt().domain([1, totalMax]).range([5, 24]);
+  const linkWidthScale = d3.scaleLinear().domain([1, d3.max(links, d=>d.weight)||1]).range([1.5, 7]);
+
+  const svg = d3.select(svgEl);
+  const g = svg.append('g');
+
+  svg.call(d3.zoom().scaleExtent([0.3, 4]).on('zoom', evt => g.attr('transform', evt.transform)));
+
+  // Links
+  const link = g.selectAll('.link').data(links).join('line')
+    .attr('class','link')
+    .attr('stroke', d => d.dir === 'in' ? 'var(--blue)' : d.dir === 'out' ? 'var(--gold)' : 'var(--purple)')
+    .attr('stroke-width', d => linkWidthScale(d.weight))
+    .attr('stroke-opacity', 0.55)
+    .on('mousemove', (evt, d) => {
+      showTooltip(evt,
+        `<strong>${escHtml(d.source.id || d.source)} ↔ ${escHtml(d.target.id || d.target)}</strong><br>${d.weight} letter${d.weight>1?'s':''}<br>Direction: ${escHtml(d.dir)}`
+      );
+    }).on('mouseleave', hideTooltip);
+
+  // Nodes
+  const node = g.selectAll('.node').data(nodes).join('g')
+    .attr('class','node')
+    .call(d3.drag()
+      .on('start', (evt, d) => { if (!evt.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag',  (evt, d) => { d.fx=evt.x; d.fy=evt.y; })
+      .on('end',   (evt, d) => { if (!evt.active) sim.alphaTarget(0); d.fx=null; d.fy=null; })
+    );
+
+  node.append('circle')
+    .attr('r', d => sizeScale(Math.max(1, d.total)))
+    .attr('fill', d => d.isCenter ? 'var(--gold)' : 'var(--card2)')
+    .attr('stroke', d => d.isCenter ? 'var(--gold-dim)' : 'var(--blue)')
+    .attr('stroke-width', d => d.isCenter ? 3 : 1.5)
+    .style('cursor','pointer')
+    .on('click', (evt, d) => {
+      if (!d.isCenter) {
+        document.getElementById('person-select').value = d.id;
+        renderPersonNetwork(d.id);
+        updatePersonStats(d.id);
+      }
+    })
+    .on('mousemove', (evt, d) => {
+      const s = APP.personSent[d.id]||0, r = APP.personRecv[d.id]||0;
+      showTooltip(evt, `<strong>${escHtml(d.id)}</strong><br>Sent: ${s} | Recv: ${r}<br>Click to explore`);
+    }).on('mouseleave', hideTooltip);
+
+  node.append('text')
+    .attr('dy', d => sizeScale(Math.max(1, d.total)) + 12)
+    .attr('text-anchor','middle')
+    .attr('fill', d => d.isCenter ? 'var(--gold)' : 'var(--text)')
+    .attr('font-size', d => d.isCenter ? '12px' : '10px')
+    .attr('font-weight', d => d.isCenter ? '600' : '400')
+    .text(d => d.id.length > 20 ? d.id.slice(0,18)+'…' : d.id);
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(d => 80 + linkWidthScale(d.weight)*5))
+    .force('charge', d3.forceManyBody().strength(-220))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collide', d3.forceCollide(d => sizeScale(Math.max(1,d.total)) + 18))
+    .on('tick', () => {
+      link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+          .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+
+  networkSimulation = sim;
+
+  // Legend
+  const legendData = [
+    { color: 'var(--gold)', label: 'Sent by selected' },
+    { color: 'var(--blue)', label: 'Received by selected' },
+    { color: 'var(--purple)', label: 'Both' },
+  ];
+  const lg = svg.append('g').attr('transform','translate(12,12)');
+  legendData.forEach((item, i) => {
+    lg.append('line').attr('x1',0).attr('y1',i*18+6).attr('x2',18).attr('y2',i*18+6)
+      .attr('stroke',item.color).attr('stroke-width',3).attr('stroke-opacity',0.7);
+    lg.append('text').attr('x',24).attr('y',i*18+10)
+      .attr('fill','var(--muted)').attr('font-size','10px').text(item.label);
+  });
+}
+
+function renderTopNetwork() {
+  if (networkSimulation) { networkSimulation.stop(); networkSimulation = null; }
+  const svgEl = document.getElementById('network-svg');
+  svgEl.innerHTML = '';
+  const W = svgEl.parentElement.clientWidth || 700;
+  const H = 520;
+  svgEl.setAttribute('width', W);
+
+  // Top 50 people by degree (sent+recv)
+  const top50 = APP.allPeople.slice(0, 50);
+  const nameSet = new Set(top50.map(d=>d.name));
+  const nodeMap = {};
+  top50.forEach(d => { nodeMap[d.name] = { id: d.name, total: d.total }; });
+
+  const links = [];
+  const seenPairs = new Set();
+  Object.entries(APP.pairCounts).forEach(([key, cnt]) => {
+    const [a, b] = key.split('|||');
+    if (nameSet.has(a) && nameSet.has(b)) {
+      const pk = [a,b].sort().join('|||');
+      if (!seenPairs.has(pk)) {
+        seenPairs.add(pk);
+        links.push({ source: a, target: b, weight: cnt });
+      } else {
+        // Add to existing
+        const existing = links.find(l => {
+          const la = l.source.id||l.source, lb = l.target.id||l.target;
+          return [la,lb].sort().join('|||') === pk;
+        });
+        if (existing) existing.weight += cnt;
+      }
+    }
+  });
+
+  const nodes = top50.map(d => ({ ...d }));
+  const totalMax = d3.max(nodes, d=>d.total)||1;
+  const sizeScale = d3.scaleSqrt().domain([1,totalMax]).range([4,20]);
+  const linkWidthScale = d3.scaleLinear().domain([1, d3.max(links,d=>d.weight)||1]).range([0.5,5]);
+  const colorScale = d3.scaleSequential().domain([1,totalMax]).interpolator(d3.interpolateRgb('#2a4a7f','#58a6ff'));
+
+  const svg = d3.select(svgEl);
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.2,4]).on('zoom', evt=>g.attr('transform',evt.transform)));
+
+  g.selectAll('.link').data(links).join('line')
+    .attr('class','link')
+    .attr('stroke','var(--border)')
+    .attr('stroke-width', d => linkWidthScale(d.weight))
+    .attr('stroke-opacity',0.45)
+    .on('mousemove',(evt,d)=>{
+      const a=d.source.id||d.source, b=d.target.id||d.target;
+      showTooltip(evt,`<strong>${escHtml(String(a))} ↔ ${escHtml(String(b))}</strong><br>${d.weight} letters`);
+    }).on('mouseleave',hideTooltip);
+
+  const node = g.selectAll('.node').data(nodes).join('g').attr('class','node')
+    .call(d3.drag()
+      .on('start',(evt,d)=>{if(!evt.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',(evt,d)=>{d.fx=evt.x;d.fy=evt.y;})
+      .on('end',(evt,d)=>{if(!evt.active)sim.alphaTarget(0);d.fx=null;d.fy=null;})
+    );
+
+  node.append('circle')
+    .attr('r', d => sizeScale(Math.max(1,d.total)))
+    .attr('fill', d => colorScale(d.total))
+    .attr('stroke','var(--border)').attr('stroke-width',1)
+    .style('cursor','pointer')
+    .on('click',(evt,d)=>{
+      document.getElementById('person-select').value=d.id;
+      renderPersonNetwork(d.id);
+      updatePersonStats(d.id);
+    })
+    .on('mousemove',(evt,d)=>{
+      showTooltip(evt,`<strong>${escHtml(d.id)}</strong><br>Total: ${d.total}<br>Click to explore`);
+    }).on('mouseleave',hideTooltip);
+
+  node.append('text')
+    .attr('dy', d=>sizeScale(Math.max(1,d.total))+10)
+    .attr('text-anchor','middle')
+    .attr('fill','var(--muted)')
+    .attr('font-size','9px')
+    .text(d => d.id.length>18 ? d.id.slice(0,16)+'…' : d.id);
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d=>d.id).distance(60))
+    .force('charge', d3.forceManyBody().strength(-120))
+    .force('center', d3.forceCenter(W/2,H/2))
+    .force('collide', d3.forceCollide(d=>sizeScale(Math.max(1,d.total))+12))
+    .on('tick',()=>{
+      g.selectAll('.link')
+        .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+        .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      node.attr('transform',d=>`translate(${d.x},${d.y})`);
+    });
+  networkSimulation = sim;
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 4: LOCATIONS
+// ══════════════════════════════════════════════════════════
+function renderTab4() {
+  renderPlaceBarChart('from-place-chart', APP.fromPlaceCounts, 15, 'Top 15 Sending Places');
+  renderPlaceBarChart('to-place-chart',   APP.toPlaceCounts,   10, 'Top 10 Receiving Places');
+  renderRoutesTable();
+  renderPlaceNetwork();
+}
+
+function renderPlaceBarChart(containerId, counts, topN, _title) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+
+  const data = Object.entries(counts)
+    .filter(([p]) => p && p !== 'Unknown' && p !== 'unknown')
+    .sort((a,b)=>b[1]-a[1]).slice(0,topN)
+    .map(([place,count])=>({place,count}));
+
+  const W = container.clientWidth || 400;
+  const margin = { top: 8, right: 60, bottom: 10, left: 130 };
+  const rowH = 26;
+  const height = data.length * rowH + margin.top + margin.bottom;
+  const width  = W - margin.left - margin.right;
+
+  const svg = d3.select(container).append('svg').attr('width',W).attr('height',height);
+  const g = svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
+
+  const maxCount = d3.max(data,d=>d.count)||1;
+  const x = d3.scaleLinear().domain([0,maxCount]).range([0,width]);
+  const y = d3.scaleBand().domain(data.map(d=>d.place)).range([0,height-margin.top-margin.bottom]).padding(0.2);
+
+  g.selectAll('.bar').data(data).join('rect')
+    .attr('class','bar')
+    .attr('x',0).attr('y',d=>y(d.place))
+    .attr('width',d=>x(d.count)).attr('height',y.bandwidth())
+    .attr('rx',3).attr('fill','var(--blue)').attr('opacity',0.75)
+    .style('cursor','pointer')
+    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${escHtml(d.place)}</strong><br>${d.count.toLocaleString()} letters`))
+    .on('mouseleave',hideTooltip);
+
+  g.selectAll('.count-label').data(data).join('text')
+    .attr('x',d=>x(d.count)+5).attr('y',d=>y(d.place)+y.bandwidth()/2+4)
+    .attr('fill','var(--muted)').attr('font-size','11px')
+    .text(d=>d.count);
+
+  g.append('g').attr('class','axis').call(
+    d3.axisLeft(y).tickSizeOuter(0)
+  ).selectAll('text').attr('fill','var(--text)').attr('font-size','11px');
+}
+
+function renderRoutesTable() {
+  const top = Object.entries(APP.routeCounts)
+    .sort((a,b)=>b[1]-a[1]).slice(0,15);
+
+  const rows = top.map(([route, count], i) => {
+    const [from, to] = route.split('→');
+    return `<tr>
+      <td class="rank-num">${i+1}</td>
+      <td>${escHtml(from)} <span class="route-arrow">→</span> ${escHtml(to)}</td>
+      <td class="route-count">${count.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('routes-table').innerHTML = `
+    <table class="routes-table">
+      <thead><tr><th>#</th><th>Route</th><th>Count</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderPlaceNetwork() {
+  const svgEl = document.getElementById('place-network-svg');
+  svgEl.innerHTML = '';
+  const W = svgEl.parentElement.clientWidth || 500;
+  const H = 420;
+  svgEl.setAttribute('width', W);
+
+  // Top 20 places by combined activity
+  const placeTotals = {};
+  Object.entries(APP.fromPlaceCounts).forEach(([p,c]) => { if(p) placeTotals[p] = (placeTotals[p]||0)+c; });
+  Object.entries(APP.toPlaceCounts).forEach(([p,c]) => { if(p) placeTotals[p] = (placeTotals[p]||0)+c; });
+
+  const top20 = Object.entries(placeTotals)
+    .filter(([p]) => p && p !== 'Unknown')
+    .sort((a,b)=>b[1]-a[1]).slice(0,20)
+    .map(([name,total])=>({name,total}));
+  const placeSet = new Set(top20.map(d=>d.name));
+
+  // Links from routes
+  const placeLinks = [];
+  const seenPL = new Set();
+  Object.entries(APP.routeCounts).forEach(([route, cnt]) => {
+    const [a,b] = route.split('→');
+    if (placeSet.has(a) && placeSet.has(b) && a!==b) {
+      const pk = [a,b].sort().join('|||');
+      if (!seenPL.has(pk)) {
+        seenPL.add(pk);
+        placeLinks.push({ source: a, target: b, weight: cnt });
+      } else {
+        const ex = placeLinks.find(l=>{
+          const la=l.source.id||l.source, lb=l.target.id||l.target;
+          return [la,lb].sort().join('|||')===pk;
+        });
+        if(ex) ex.weight+=cnt;
+      }
+    }
+  });
+
+  const nodes = top20.map(d=>({...d}));
+  const totalMax = d3.max(nodes,d=>d.total)||1;
+  const sizeScale = d3.scaleSqrt().domain([1,totalMax]).range([5,22]);
+  const wMax = d3.max(placeLinks,d=>d.weight)||1;
+  const linkWidthScale = d3.scaleLinear().domain([1,wMax]).range([1,6]);
+
+  const svg = d3.select(svgEl);
+  const g = svg.append('g');
+  svg.call(d3.zoom().scaleExtent([0.3,4]).on('zoom',evt=>g.attr('transform',evt.transform)));
+
+  g.selectAll('.link').data(placeLinks).join('line')
+    .attr('class','link')
+    .attr('stroke','var(--gold)').attr('stroke-opacity',0.35)
+    .attr('stroke-width',d=>linkWidthScale(d.weight))
+    .on('mousemove',(evt,d)=>{
+      const sourceName=d.source.name||d.source, targetName=d.target.name||d.target;
+      showTooltip(evt,`<strong>${escHtml(String(sourceName))} ↔ ${escHtml(String(targetName))}</strong><br>${d.weight} letters`);
+    }).on('mouseleave',hideTooltip);
+
+  const placeNode = g.selectAll('.node').data(nodes).join('g').attr('class','node')
+    .call(d3.drag()
+      .on('start',(evt,d)=>{if(!evt.active)placeSimulation.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',(evt,d)=>{d.fx=evt.x;d.fy=evt.y;})
+      .on('end',(evt,d)=>{if(!evt.active)placeSimulation.alphaTarget(0);d.fx=null;d.fy=null;})
+    );
+
+  placeNode.append('circle')
+    .attr('r',d=>sizeScale(Math.max(1,d.total)))
+    .attr('fill','var(--card2)')
+    .attr('stroke','var(--gold)').attr('stroke-width',1.5)
+    .style('cursor','pointer')
+    .on('mousemove',(evt,d)=>showTooltip(evt,`<strong>${escHtml(d.name)}</strong><br>Activity: ${d.total.toLocaleString()}`))
+    .on('mouseleave',hideTooltip);
+
+  placeNode.append('text')
+    .attr('dy',d=>sizeScale(Math.max(1,d.total))+11)
+    .attr('text-anchor','middle')
+    .attr('fill','var(--muted)').attr('font-size','10px')
+    .text(d=>d.name.length>16?d.name.slice(0,14)+'…':d.name);
+
+  const placeSimulation = d3.forceSimulation(nodes)
+    .force('link',d3.forceLink(placeLinks).id(d=>d.name).distance(80))
+    .force('charge',d3.forceManyBody().strength(-160))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collide',d3.forceCollide(d=>sizeScale(Math.max(1,d.total))+14))
+    .on('tick',()=>{
+      g.selectAll('.link')
+        .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+        .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      placeNode.attr('transform',d=>`translate(${d.x},${d.y})`);
+    });
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════════════════════════════════
+const tabRenderers = {
+  tab1: renderTab1,
+  tab2: renderTab2,
+  tab3: renderTab3,
+  tab4: renderTab4,
+};
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const tabId = btn.dataset.tab;
+    document.getElementById(tabId).classList.add('active');
+
+    if (!renderedTabs.has(tabId)) {
+      renderedTabs.add(tabId);
+      tabRenderers[tabId]();
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════════════
+// DATA LOADING
+// ══════════════════════════════════════════════════════════
+Papa.parse('letters-raw.csv', {
+  header: true,
+  download: true,
+  skipEmptyLines: true,
+  complete: (results) => {
+    processData(results.data);
+
+    // Render first tab
+    renderedTabs.add('tab1');
+    renderTab1();
+
+    // Hide loading overlay
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.transition = 'opacity 0.4s';
+    overlay.style.opacity = '0';
+    setTimeout(() => { overlay.style.display = 'none'; }, 400);
+  },
+  error: (err) => {
+    document.getElementById('loading-overlay').innerHTML =
+      `<div style="color:var(--red);text-align:center;padding:40px">
+        <div style="font-size:2rem;margin-bottom:12px">⚠</div>
+        <strong>Failed to load data</strong><br>
+        <span style="color:var(--muted);font-size:0.85rem">${err.message || 'Check that letters-raw.csv is present'}</span>
+      </div>`;
+  }
+});
+</script>
+</body>
+</html>
