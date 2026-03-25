@@ -2370,6 +2370,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     const tabId = btn.dataset.tab;
     document.getElementById(tabId).classList.add('active');
 
+    const fullNetworkSection = document.querySelector('.full-network-section');
+    if (fullNetworkSection) {
+      fullNetworkSection.style.display = tabId === 'tab1' ? '' : 'none';
+    }
+
     if (!renderedTabs.has(tabId)) {
       renderedTabs.add(tabId);
       tabRenderers[tabId]();
