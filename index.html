@@ -10,19 +10,19 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
   <style>
     :root {
-      --bg: #0d1117;
-      --card: #161b22;
-      --card2: #1c2128;
-      --gold: #e8c468;
-      --gold-dim: #c9a84c;
-      --blue: #58a6ff;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --green: #3fb950;
-      --red: #f85149;
-      --purple: #bc8cff;
-      --orange: #ffa657;
+      --bg: #ffffff;
+      --card: #f6f8fa;
+      --card2: #eaeef2;
+      --gold: #9a6f00;
+      --gold-dim: #7a5400;
+      --blue: #0969da;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #57606a;
+      --green: #1a7f37;
+      --red: #cf222e;
+      --purple: #8250df;
+      --orange: #bc4c00;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-size: 14px; }
@@ -56,7 +56,7 @@
     /* ── Hero Banner ── */
     .hero {
       position: relative;
-      background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0f1923 100%);
+      background: linear-gradient(135deg, #f0f6fc 0%, #ffffff 50%, #edf2f7 100%);
       border-bottom: 1px solid var(--border);
       padding: 72px 40px 64px;
       overflow: hidden;
@@ -65,7 +65,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background-image: radial-gradient(circle at 1px 1px, rgba(232,196,104,0.055) 1px, transparent 0);
+      background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0);
       background-size: 42px 42px;
       pointer-events: none;
     }
@@ -174,7 +174,7 @@
       position: absolute;
       bottom: 12px;
       right: 14px;
-      background: rgba(13,17,23,0.75);
+      background: rgba(246,248,250,0.95);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 5px 11px;
@@ -323,7 +323,7 @@
       color: var(--text);
     }
     .rank-table tr:last-child td { border-bottom: none; }
-    .rank-table tr:hover td { background: rgba(255,255,255,0.03); }
+    .rank-table tr:hover td { background: rgba(0,0,0,0.04); }
     .rank-num { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 24px; }
     .rank-count { color: var(--gold); font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
     .rank-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -338,7 +338,7 @@
     /* ── Tooltip ── */
     #tooltip {
       position: fixed;
-      background: #1c2128;
+      background: #eaeef2;
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px 14px;
@@ -348,7 +348,7 @@
       z-index: 1000;
       max-width: 240px;
       line-height: 1.5;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
       display: none;
     }
     #tooltip strong { color: var(--gold); display: block; margin-bottom: 2px; }
@@ -432,7 +432,7 @@
     .routes-table th { color: var(--muted); font-weight: 500; text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; }
     .routes-table td { padding: 9px 12px; border-bottom: 1px solid rgba(48,54,61,0.5); }
     .routes-table tr:last-child td { border-bottom: none; }
-    .routes-table tr:hover td { background: rgba(255,255,255,0.03); }
+    .routes-table tr:hover td { background: rgba(0,0,0,0.04); }
     .route-arrow { color: var(--gold); font-weight: 600; }
     .route-count { color: var(--blue); font-weight: 600; font-variant-numeric: tabular-nums; }
 
@@ -620,7 +620,7 @@
       display: block;
     }
     .api-code-block {
-      background: #0d1117;
+      background: #eaeef2;
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 16px;
@@ -714,7 +714,7 @@
     <div class="network-hint">Scroll to zoom · Drag to pan · Hover for details</div>
   </div>
   <div class="fn-legend" id="fn-legend">
-    <span class="fn-legend-item"><span class="fn-legend-dot" style="background:#1a3a5c;border:1px solid #30363d"></span>Few letters</span>
+    <span class="fn-legend-item"><span class="fn-legend-dot" style="background:#1a3a5c;border:1px solid #d0d7de"></span>Few letters</span>
     <span class="fn-legend-item"><span class="fn-legend-dot" style="background:#3a6a9f"></span></span>
     <span class="fn-legend-item"><span class="fn-legend-dot" style="background:#e8c468;border:1px solid rgba(232,196,104,0.4)"></span>Many letters</span>
     <span class="fn-legend-item" style="margin-left:8px;color:var(--muted)">Node size = total correspondence · Edge weight = letter count</span>
@@ -1261,7 +1261,7 @@ function renderFullNetwork() {
   // Draw links
   const linkEls = g.selectAll('.fn-link').data(links).join('line')
     .attr('class', 'fn-link')
-    .attr('stroke', '#30363d')
+    .attr('stroke', '#d0d7de')
     .attr('stroke-width', d => linkWidthScale(d.weight))
     .attr('stroke-opacity', 0.4)
     .on('mousemove', (evt, d) => {
@@ -1283,7 +1283,7 @@ function renderFullNetwork() {
   node.append('circle')
     .attr('r', d => sizeScale(Math.max(1, d.total)))
     .attr('fill', d => colorScale(d.total))
-    .attr('stroke', d => d.total > totalMax * 0.25 ? 'rgba(232,196,104,0.55)' : 'rgba(48,54,61,0.5)')
+    .attr('stroke', d => d.total > totalMax * 0.25 ? 'rgba(154,111,0,0.6)' : 'rgba(208,215,222,0.7)')
     .attr('stroke-width', d => d.total > totalMax * 0.25 ? 1.5 : 0.5)
     .style('cursor', 'pointer')
     .on('mousemove', (evt, d) => {
@@ -1496,7 +1496,7 @@ function renderHeatmap() {
   const maxCount = Math.max(1, ...Object.values(APP.monthCounts1689));
   const colorScale = d3.scaleLinear()
     .domain([0, maxCount])
-    .range(['#1c2128', '#e8c468']);
+    .range(['#eaeef2', '#9a6f00']);
 
   const svg = d3.select(container).append('svg')
     .attr('width', W).attr('height', svgH);
@@ -1521,7 +1521,7 @@ function renderHeatmap() {
     svg.append('text')
       .attr('x', cx + cellW/2).attr('y', marginT + cellH/2 + 5)
       .attr('text-anchor','middle')
-      .attr('fill', count > maxCount * 0.4 ? '#0d1117' : '#8b949e')
+      .attr('fill', count > maxCount * 0.4 ? '#1f2328' : '#57606a')
       .attr('font-size','13px')
       .attr('font-weight','600')
       .text(count || '0');
@@ -1536,8 +1536,8 @@ function renderHeatmap() {
   const barX = W - barW - 20, barY = svgH - marginB + 6;
   const defs = svg.append('defs');
   const grad = defs.append('linearGradient').attr('id','hm-grad');
-  grad.append('stop').attr('offset','0%').attr('stop-color','#1c2128');
-  grad.append('stop').attr('offset','100%').attr('stop-color','#e8c468');
+  grad.append('stop').attr('offset','0%').attr('stop-color','#eaeef2');
+  grad.append('stop').attr('offset','100%').attr('stop-color','#9a6f00');
   svg.append('rect').attr('x',barX).attr('y',barY).attr('width',barW).attr('height',barH)
     .attr('rx',3).attr('fill','url(#hm-grad)');
   svg.append('text').attr('x',barX-4).attr('y',barY+8).attr('text-anchor','end')
