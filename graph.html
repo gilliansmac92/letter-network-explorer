@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Network Graph — Letter Network Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --gold: #e8c468;
+      --gold-dim: #b8943a;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --orange: #f0883e;
+      --purple: #bc8cff;
+      --red: #ff7b72;
+      --node-person: #58a6ff;
+      --node-group: #f0883e;
+      --node-org: #bc8cff;
+      --node-place: #3fb950;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    /* ── Loading Overlay ── */
+    #loading-overlay {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999;
+      gap: 18px;
+    }
+    #loading-overlay h2 { color: var(--text); font-size: 1.1rem; font-weight: 500; }
+    #loading-overlay p { color: var(--muted); font-size: 0.85rem; }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-progress {
+      width: 240px; height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    #loading-progress-bar {
+      height: 100%; width: 0%;
+      background: var(--gold);
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+
+    /* ── Layout ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100%; height: 100%;
+    }
+
+    /* ── Header ── */
+    #header {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      z-index: 100;
+    }
+    #header a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    #header a:hover { color: var(--text); }
+    .header-divider { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+    #header-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+    #header-subtitle { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
+    #node-count-badge {
+      font-size: 0.72rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px 10px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    /* ── Controls Bar ── */
+    #controls {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      z-index: 100;
+    }
+
+    #search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 180px;
+      max-width: 300px;
+    }
+    #search-wrap svg {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: var(--muted);
+    }
+    #search {
+      width: 100%;
+      padding: 5px 10px 5px 30px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.82rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #search:focus { border-color: var(--gold-dim); }
+    #search::placeholder { color: var(--muted); }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ctrl-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .filter-chips {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+      background: var(--surface2);
+      color: var(--muted);
+    }
+    .chip.active { color: var(--text); border-color: currentColor; }
+    .chip .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .chip[data-type="Person"].active { color: var(--node-person); border-color: var(--node-person); background: rgba(88,166,255,0.1); }
+    .chip[data-type="Group"].active { color: var(--node-group); border-color: var(--node-group); background: rgba(240,136,62,0.1); }
+    .chip[data-type="Organization"].active { color: var(--node-org); border-color: var(--node-org); background: rgba(188,140,255,0.1); }
+    .chip[data-type="Place"].active { color: var(--node-place); border-color: var(--node-place); background: rgba(63,185,80,0.1); }
+
+    .ctrl-select {
+      padding: 4px 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.78rem;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+    }
+    .ctrl-select:focus { border-color: var(--gold-dim); }
+
+    .icon-btn {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      line-height: 1;
+      transition: all 0.15s;
+    }
+    .icon-btn:hover { background: var(--surface); border-color: var(--muted); }
+    .icon-btn:active { transform: scale(0.94); }
+
+    .ctrl-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: var(--muted);
+      user-select: none;
+    }
+    .ctrl-toggle input { cursor: pointer; accent-color: var(--gold); }
+    .ctrl-toggle:hover { color: var(--text); }
+
+    /* ── Main Area ── */
+    #main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #graph-canvas {
+      display: block;
+      cursor: grab;
+    }
+    #graph-canvas:active { cursor: grabbing; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      z-index: 500;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      max-width: 260px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+      opacity: 0;
+      transition: opacity 0.12s;
+    }
+    #tooltip.visible { opacity: 1; }
+    .tt-name { font-weight: 600; font-size: 0.88rem; color: var(--text); margin-bottom: 4px; }
+    .tt-type { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+    .tt-type.Person { color: var(--node-person); }
+    .tt-type.Group { color: var(--node-group); }
+    .tt-type.Organization { color: var(--node-org); }
+    .tt-type.Place { color: var(--node-place); }
+    .tt-stat { color: var(--muted); font-size: 0.77rem; }
+    .tt-stat strong { color: var(--text); }
+    .tt-hint { margin-top: 6px; font-size: 0.72rem; color: var(--muted); font-style: italic; }
+
+    /* ── Info Panel ── */
+    #info-panel {
+      position: absolute;
+      right: 16px;
+      top: 16px;
+      width: 280px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+      z-index: 300;
+      display: none;
+      max-height: calc(100% - 32px);
+      overflow-y: auto;
+    }
+    #info-panel.visible { display: block; }
+    #info-close {
+      position: absolute;
+      top: 10px; right: 10px;
+      width: 22px; height: 22px;
+      border-radius: 4px;
+      border: none;
+      background: var(--surface2);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    #info-close:hover { background: var(--border); color: var(--text); }
+    #info-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+      padding-right: 24px;
+    }
+    #info-type {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .info-section { margin-bottom: 12px; }
+    .info-section-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .info-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 4px;
+      font-size: 0.78rem;
+    }
+    .info-row .lbl { color: var(--muted); flex-shrink: 0; min-width: 68px; }
+    .info-row .val { color: var(--text); }
+    .info-conn-list { display: flex; flex-direction: column; gap: 3px; max-height: 200px; overflow-y: auto; }
+    .info-conn-item {
+      font-size: 0.77rem;
+      color: var(--muted);
+      padding: 3px 6px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .info-conn-item:hover { background: var(--surface2); color: var(--text); }
+    .info-conn-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Legend ── */
+    #legend {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.75rem;
+      z-index: 300;
+      min-width: 140px;
+    }
+    .legend-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-line { width: 20px; height: 2px; flex-shrink: 0; border-radius: 1px; }
+
+    /* ── Stats Badge ── */
+    #stats-badge {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      z-index: 300;
+    }
+    .stat-row { color: var(--muted); margin-bottom: 2px; }
+    .stat-row strong { color: var(--text); }
+
+    /* ── Simulation progress bar ── */
+    #sim-progress {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--surface2);
+      z-index: 400;
+      overflow: hidden;
+      display: none;
+    }
+    #sim-progress-bar {
+      height: 100%;
+      background: var(--gold);
+      transform-origin: left;
+      transform: scaleX(0);
+      transition: transform 0.1s;
+    }
+
+    /* scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <h2>Building the Network</h2>
+  <p id="loading-status">Loading correspondence data…</p>
+  <div id="loading-progress"><div id="loading-progress-bar"></div></div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <!-- Header -->
+  <div id="header">
+    <a href="index.html">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06z"/></svg>
+      Explorer
+    </a>
+    <div class="header-divider"></div>
+    <span id="header-title">Network Graph</span>
+    <span id="header-subtitle">Scotland 1688–1692</span>
+    <div class="header-divider"></div>
+    <span id="node-count-badge">Loading…</span>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <div id="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/>
+      </svg>
+      <input type="text" id="search" placeholder="Search nodes…" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">Show</span>
+      <div class="filter-chips" id="type-filters">
+        <div class="chip active" data-type="Person"><span class="dot" style="background:var(--node-person)"></span>People</div>
+        <div class="chip active" data-type="Group"><span class="dot" style="background:var(--node-group)"></span>Groups</div>
+        <div class="chip active" data-type="Organization"><span class="dot" style="background:var(--node-org)"></span>Orgs</div>
+        <div class="chip active" data-type="Place"><span class="dot" style="background:var(--node-place)"></span>Places</div>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">Edges</span>
+      <select class="ctrl-select" id="edge-filter">
+        <option value="all">All types</option>
+        <option value="letters">Letters only</option>
+        <option value="docs">Documents only</option>
+        <option value="place">Place links only</option>
+      </select>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">Collection</span>
+      <select class="ctrl-select" id="collection-filter">
+        <option value="all">All collections</option>
+      </select>
+    </div>
+
+    <label class="ctrl-toggle">
+      <input type="checkbox" id="labels-toggle" checked>
+      Labels
+    </label>
+
+    <div class="ctrl-group" style="margin-left:auto;">
+      <button class="icon-btn" id="zoom-in" title="Zoom in">+</button>
+      <button class="icon-btn" id="zoom-out" title="Zoom out">−</button>
+      <button class="icon-btn" id="zoom-reset" title="Reset view" style="font-size:0.85rem;">⌂</button>
+    </div>
+  </div>
+
+  <!-- Main Canvas Area -->
+  <div id="main">
+    <canvas id="graph-canvas"></canvas>
+
+    <!-- Stats Badge -->
+    <div id="stats-badge">
+      <div class="stat-row"><strong id="stat-nodes">0</strong> nodes</div>
+      <div class="stat-row"><strong id="stat-edges">0</strong> edges</div>
+      <div class="stat-row" id="stat-filtered-row" style="display:none;color:var(--gold)"><strong id="stat-filtered">0</strong> visible</div>
+    </div>
+
+    <!-- Legend -->
+    <div id="legend">
+      <div class="legend-title">Node types</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--node-person)"></span>Person</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--node-group)"></span>Group</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--node-org)"></span>Organization</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--node-place)"></span>Place</div>
+      <div style="margin-top:8px;" class="legend-title">Edge types</div>
+      <div class="legend-item"><span class="legend-line" style="background:rgba(88,166,255,0.6)"></span>Letter</div>
+      <div class="legend-item"><span class="legend-line" style="background:rgba(63,185,80,0.4)"></span>Place link</div>
+      <div class="legend-item"><span class="legend-line" style="background:rgba(180,180,180,0.4)"></span>Document</div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip">
+      <div class="tt-name" id="tt-name"></div>
+      <div class="tt-type" id="tt-type"></div>
+      <div class="tt-stat" id="tt-stat"></div>
+      <div class="tt-hint" id="tt-hint"></div>
+    </div>
+
+    <!-- Info Panel -->
+    <div id="info-panel">
+      <button id="info-close">×</button>
+      <div id="info-name"></div>
+      <div id="info-type"></div>
+      <div id="info-content"></div>
+    </div>
+
+    <!-- Simulation progress -->
+    <div id="sim-progress"><div id="sim-progress-bar"></div></div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+//  CONSTANTS & CONFIG
+// ─────────────────────────────────────────────
+const NODE_COLORS = {
+  'Person':       '#58a6ff',
+  'Group':        '#f0883e',
+  'Organization': '#bc8cff',
+  'Place':        '#3fb950',
+};
+
+const LETTER_EDGE_TYPES = new Set([
+  'WROTE LETTER TO', 'Wrote Letter to', 'Letter', 'Draft Letter',
+  'Copy Letter', 'Intercepted Letter', 'Letter Packet', 'Digest of Letters',
+]);
+
+const DOC_EDGE_TYPES = new Set([
+  'Proclamation', 'Warrant', 'Examination', 'Commission', 'Instructions',
+  'Declaration', 'Deposition', 'Petition', 'Order', 'Memorandum', 'Report',
+  'Memorial', 'Pass', 'Passes', 'Account', 'Information', 'Agreement',
+  'Commissions', 'Exoneration', 'Opinion', 'Address', 'Remarks',
+  'Examination Articles', 'Attestation', 'Narrative', 'Conditions',
+  'Precept', 'Oath', 'Receipt', 'Inquiry', 'Contract', 'Proceedings',
+  'Answer', 'Pamphlet', 'Reasons', 'Approbation', 'Communicated',
+  'Plan for Invasion', 'Military Report', 'Eulogy', 'Discourse',
+  'Papers', 'Notebook', 'Business', 'Confession', 'Consideration',
+  'Considerations', 'Discovery', 'Paper', 'Newsletter', 'Letters',
+  'Drafts, notes, etc', 'Act', 'Queries', 'Representation', 'Recommendation',
+  'Account ', // trailing space variant
+]);
+
+// Known name aliases: raw CSV value → canonical form
+// These consolidate the same historical person referenced by title only,
+// estate name, or full name across different letter collections.
+const NAME_ALIASES = {
+  // Typos / misspellings
+  'Hamitlon':              'Hamilton',
+  'Melvile':               'Melville',
+  'Glengarrie':            'Glengarry',
+  'Glengarrie ':           'Glengarry',
+  'MacKay':                'Mackay',
+
+  // "Carwhin" = Colin Campbell of Carwhin (factor to Earl of Breadalbane).
+  // "Colin Campbell" in Breadalbane correspondence context is the same person.
+  'Carwhin':               'Colin Campbell of Carwhin',
+  'Colin Campbell':        'Colin Campbell of Carwhin',
+
+  // "Balcarres" = Colin Lindsay, Earl of Balcarres (Jacobite peer)
+  // The Countess Balcarres is a distinct person, so she is kept separate.
+
+  // "Dunfermline" as a surname-only addressee = Alexander Seton, Earl of Dunfermline
+  // Lady Dunfermline / Countess Dunfermline = his wife; kept separate.
+  'Countess Dunfermline':  'Countess of Dunfermline',
+
+  // Whitespace-only variants (handled by trim, but listed explicitly for clarity)
+  'Melville ':             'Melville',
+  'Melville  ':            'Melville',
+  'Hamilton ':             'Hamilton',
+  'King William ':         'King William',
+  'King James ':           'King James',
+  'Queen Mary ':           'Queen Mary',
+  'Breadalbane ':          'Breadalbane',
+  'Mackay ':               'Mackay',
+  'Cardross ':             'Cardross',
+  'Polwarth ':             'Polwarth',
+  'Leven ':                'Leven',
+  'Hill ':                 'Hill',
+  'Crawford ':             'Crawford',
+  'Arran ':                'Arran',
+  'Ross ':                 'Ross',
+  'Annandale ':            'Annandale',
+  'Tarbat ':               'Tarbat',
+  'Raith ':                'Raith',
+  'Perth ':                'Perth',
+  'Atholl ':               'Atholl',
+};
+
+// Place aliases: normalize minor variants
+const PLACE_ALIASES = {
+  'Kensington Court':      'Kensington',
+  'Dublin Castle':         'Dublin',
+  // Very long addresses get simplified
+  "Head of Kenedy's Close, south side of the street, Edinburgh": 'Edinburgh',
+  "Mr Frith's house near the royal cockpit in Dartmouth St., Westminster, London": 'London',
+  "Bothwick's Close, Edinburgh": 'Edinburgh',
+  'Suffolks Street, London': 'London',
+  "Hamilton's Lodgings":   'Hamilton',
+};
+
+// ─────────────────────────────────────────────
+//  NORMALIZATION HELPERS
+// ─────────────────────────────────────────────
+function normalizeName(raw) {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  return NAME_ALIASES[trimmed] || trimmed;
+}
+
+function normalizePlace(raw) {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  return PLACE_ALIASES[trimmed] || trimmed;
+}
+
+function normalizeType(raw) {
+  if (!raw) return 'Person';
+  const t = raw.trim();
+  if (t === 'Person' || t === 'Person ') return 'Person';
+  if (t === 'Group' || t === 'Group ') return 'Group';
+  if (t === 'Organization') return 'Organization';
+  if (t === 'Place') return 'Place';
+  // Fall back to Person for unusual types (Communication, Ship, Papers, etc.)
+  return 'Person';
+}
+
+function isUnknown(name) {
+  if (!name) return true;
+  const l = name.toLowerCase().trim();
+  return l === '' || l === 'unknown' || l === 'n/a';
+}
+
+function getEdgeCategory(edgeType) {
+  const e = (edgeType || '').trim();
+  if (LETTER_EDGE_TYPES.has(e)) return 'letter';
+  if (e === 'sent from' || e === 'received at') return 'place';
+  return 'doc';
+}
+
+// ─────────────────────────────────────────────
+//  DATA PROCESSING
+// ─────────────────────────────────────────────
+function processData(rows) {
+  const nodesMap = new Map();   // id → node object
+  const edgesArr = [];
+  const seenPlaceEdges = new Set();
+  const collections = new Set();
+
+  function ensureNode(id, type, fromRow) {
+    if (!id || isUnknown(id)) return;
+    if (!nodesMap.has(id)) {
+      nodesMap.set(id, {
+        id,
+        label: id,
+        type,
+        degree: 0,
+        letterCount: 0,
+        collections: new Set(),
+        places: new Set(),
+      });
+    } else {
+      // Keep most descriptive type if we see a better one
+      const existing = nodesMap.get(id);
+      const typePriority = { 'Person': 3, 'Group': 2, 'Organization': 2, 'Place': 1 };
+      if ((typePriority[type] || 0) > (typePriority[existing.type] || 0)) {
+        existing.type = type;
+      }
+    }
+  }
+
+  function addEdge(source, target, edgeType, meta) {
+    if (!source || !target || isUnknown(source) || isUnknown(target)) return;
+    if (source === target) return;
+    const category = getEdgeCategory(edgeType);
+    edgesArr.push({ source, target, edgeType: edgeType || '', category, ...meta });
+    if (nodesMap.has(source)) { nodesMap.get(source).degree++; if (category === 'letter') nodesMap.get(source).letterCount++; }
+    if (nodesMap.has(target)) { nodesMap.get(target).degree++; if (category === 'letter') nodesMap.get(target).letterCount++; }
+  }
+
+  rows.forEach(row => {
+    const fromName  = normalizeName(row['From Name']);
+    const toName    = normalizeName(row['To Name']);
+    const fromPlace = normalizePlace(row['From Place']);
+    const toPlace   = normalizePlace(row['To Place']);
+    const fromType  = normalizeType(row['From Type']);
+    const toType    = normalizeType(row['To Type']);
+    const edgeType  = (row['Edge Type'] || '').trim();
+    const date      = (row['Date'] || '').trim();
+    const coll      = (row['Identifier'] || '').trim();
+    const ref       = (row['Reference'] || '').trim();
+    const weight    = parseInt(row['Weight']) || 1;
+
+    if (coll) collections.add(coll);
+
+    // Create person nodes
+    ensureNode(fromName, fromType, row);
+    ensureNode(toName, toType, row);
+
+    // Create place nodes
+    if (!isUnknown(fromPlace)) ensureNode(fromPlace, 'Place', row);
+    if (!isUnknown(toPlace))   ensureNode(toPlace, 'Place', row);
+
+    // Annotate person nodes with collection & places
+    if (!isUnknown(fromName) && nodesMap.has(fromName)) {
+      if (coll) nodesMap.get(fromName).collections.add(coll);
+      if (!isUnknown(fromPlace)) nodesMap.get(fromName).places.add(fromPlace);
+    }
+    if (!isUnknown(toName) && nodesMap.has(toName)) {
+      if (coll) nodesMap.get(toName).collections.add(coll);
+      if (!isUnknown(toPlace)) nodesMap.get(toName).places.add(toPlace);
+    }
+
+    // Main interaction edge (person ↔ person/group/org)
+    addEdge(fromName, toName, edgeType, { date, collection: coll, reference: ref, weight });
+
+    // Place edges — one unique edge per (person, place) pair
+    if (!isUnknown(fromName) && !isUnknown(fromPlace)) {
+      const key = `${fromName}\x00${fromPlace}`;
+      if (!seenPlaceEdges.has(key)) {
+        seenPlaceEdges.add(key);
+        addEdge(fromName, fromPlace, 'sent from', { date: '', collection: '', reference: '', weight: 1 });
+      }
+    }
+    if (!isUnknown(toName) && !isUnknown(toPlace)) {
+      const key = `${toName}\x00${toPlace}`;
+      if (!seenPlaceEdges.has(key)) {
+        seenPlaceEdges.add(key);
+        addEdge(toName, toPlace, 'received at', { date: '', collection: '', reference: '', weight: 1 });
+      }
+    }
+  });
+
+  // Convert nodes map to array; serialise sets to arrays
+  const nodes = Array.from(nodesMap.values()).map(n => ({
+    ...n,
+    collections: Array.from(n.collections),
+    places: Array.from(n.places),
+  }));
+
+  return { nodes, edges: edgesArr, collections: Array.from(collections).sort() };
+}
+
+// ─────────────────────────────────────────────
+//  MAIN APPLICATION
+// ─────────────────────────────────────────────
+(function main() {
+  const canvas  = document.getElementById('graph-canvas');
+  const ctx     = canvas.getContext('2d');
+  const tooltip = document.getElementById('tooltip');
+  const infoPanel = document.getElementById('info-panel');
+
+  let allNodes = [], allEdges = [];
+  let visibleNodes = [], visibleEdges = [];
+  let simulation;
+  let currentTransform = d3.zoomIdentity;
+  let hoveredNode = null;
+  let selectedNode = null;
+  let searchQuery = '';
+  let showLabels = true;
+  let activeTypes = new Set(['Person', 'Group', 'Organization', 'Place']);
+  let edgeFilter = 'all';
+  let collectionFilter = 'all';
+
+  // ── Canvas sizing ──────────────────────────
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width  = rect.width;
+    canvas.height = rect.height;
+    if (simulation) simulation.force('center', d3.forceCenter(canvas.width / 2, canvas.height / 2));
+    draw();
+  }
+  window.addEventListener('resize', resize);
+
+  // ── Node radius ────────────────────────────
+  function nodeRadius(d) {
+    const base = d.type === 'Place' ? 4 : 5;
+    const scale = Math.sqrt(Math.max(d.degree, 1));
+    return Math.min(base + scale * 1.1, 28);
+  }
+
+  // ── Node color ─────────────────────────────
+  function nodeColor(d) { return NODE_COLORS[d.type] || '#8b949e'; }
+
+  // ── Edge color / alpha ─────────────────────
+  function edgeStyle(e, dimmed) {
+    const alpha = dimmed ? 0.04 : (e.category === 'place' ? 0.18 : (e.category === 'letter' ? 0.45 : 0.28));
+    if (e.category === 'letter') return `rgba(88,166,255,${alpha})`;
+    if (e.category === 'place')  return `rgba(63,185,80,${alpha})`;
+    return `rgba(180,180,180,${alpha})`;
+  }
+
+  // ── Main draw ──────────────────────────────
+  function draw() {
+    if (!canvas.width) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(currentTransform.x, currentTransform.y);
+    ctx.scale(currentTransform.k, currentTransform.k);
+
+    const highlightSet = selectedNode
+      ? new Set(visibleEdges.filter(e => e.source.id === selectedNode.id || e.target.id === selectedNode.id)
+          .flatMap(e => [e.source.id, e.target.id]))
+      : null;
+    const searchSet = searchQuery ? new Set(visibleNodes.filter(n => matchesSearch(n, searchQuery)).map(n => n.id)) : null;
+
+    const dimAll = !!(highlightSet || searchSet);
+
+    // Draw edges
+    visibleEdges.forEach(e => {
+      if (!e.source.x || !e.target.x) return;
+      const sId = e.source.id, tId = e.target.id;
+      const highlighted = highlightSet ? (highlightSet.has(sId) && highlightSet.has(tId)) : false;
+      const inSearch = searchSet ? (searchSet.has(sId) || searchSet.has(tId)) : false;
+      const dimmed = dimAll && !highlighted && !inSearch;
+      ctx.beginPath();
+      ctx.moveTo(e.source.x, e.source.y);
+      ctx.lineTo(e.target.x, e.target.y);
+      ctx.strokeStyle = edgeStyle(e, dimmed);
+      ctx.lineWidth = e.weight > 1 ? 1.4 / currentTransform.k : 0.8 / currentTransform.k;
+      ctx.stroke();
+    });
+
+    // Draw nodes
+    visibleNodes.forEach(d => {
+      if (d.x == null) return;
+      const r = nodeRadius(d);
+      const isHovered = hoveredNode && hoveredNode.id === d.id;
+      const isSelected = selectedNode && selectedNode.id === d.id;
+      const inSearch = searchSet ? searchSet.has(d.id) : false;
+      const inHighlight = highlightSet ? highlightSet.has(d.id) : false;
+      const dimmed = dimAll && !inSearch && !inHighlight;
+      const color = nodeColor(d);
+
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, r, 0, Math.PI * 2);
+
+      if (dimmed) {
+        ctx.fillStyle = 'rgba(100,100,100,0.2)';
+        ctx.fill();
+      } else {
+        // Glow for selected/hovered
+        if (isSelected || isHovered) {
+          ctx.shadowColor = color;
+          ctx.shadowBlur = isSelected ? 16 : 10;
+        }
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Border for selected
+        if (isSelected) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2 / currentTransform.k;
+          ctx.stroke();
+        }
+      }
+    });
+
+    // Draw labels
+    if (showLabels) {
+      const labelK = currentTransform.k;
+      const minDegreeForLabel = labelK < 0.3 ? 30 : labelK < 0.6 ? 15 : labelK < 1 ? 8 : 3;
+
+      visibleNodes.forEach(d => {
+        if (d.x == null) return;
+        const inSearch = searchSet ? searchSet.has(d.id) : false;
+        const inHighlight = highlightSet ? highlightSet.has(d.id) : false;
+        const isSelected2 = selectedNode && selectedNode.id === d.id;
+        const dimmed = dimAll && !inSearch && !inHighlight;
+
+        const showLabel = !dimmed && (d.degree >= minDegreeForLabel || inSearch || inHighlight || isSelected2);
+        if (!showLabel) return;
+
+        const r = nodeRadius(d);
+        ctx.font = `${Math.max(9, Math.min(13, 10 + (d.degree - minDegreeForLabel) * 0.2))}px Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        const label = d.label.length > 28 ? d.label.slice(0, 26) + '…' : d.label;
+
+        // Label background
+        const tw = ctx.measureText(label).width;
+        ctx.fillStyle = 'rgba(13,17,23,0.75)';
+        ctx.fillRect(d.x - tw / 2 - 2, d.y + r + 2, tw + 4, 14);
+
+        ctx.fillStyle = dimmed ? 'rgba(139,148,158,0.4)' : (inSearch || inHighlight || isSelected2 ? '#e6edf3' : '#8b949e');
+        ctx.fillText(label, d.x, d.y + r + 3);
+      });
+    }
+
+    ctx.restore();
+  }
+
+  // ── Search helper ──────────────────────────
+  function matchesSearch(node, q) {
+    if (!q) return true;
+    return node.label.toLowerCase().includes(q.toLowerCase());
+  }
+
+  // ── Filter / rebuild visible sets ──────────
+  function applyFilters() {
+    // Filter nodes
+    visibleNodes = allNodes.filter(n => activeTypes.has(n.type));
+    const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
+
+    // Filter edges
+    visibleEdges = allEdges.filter(e => {
+      const sId = typeof e.source === 'object' ? e.source.id : e.source;
+      const tId = typeof e.target === 'object' ? e.target.id : e.target;
+      if (!visibleNodeIds.has(sId) || !visibleNodeIds.has(tId)) return false;
+      if (edgeFilter === 'letters' && e.category !== 'letter') return false;
+      if (edgeFilter === 'docs' && e.category !== 'doc') return false;
+      if (edgeFilter === 'place' && e.category !== 'place') return false;
+      if (collectionFilter !== 'all' && e.collection && e.collection !== collectionFilter) return false;
+      return true;
+    });
+
+    // Update stats
+    document.getElementById('stat-nodes').textContent = allNodes.length.toLocaleString();
+    document.getElementById('stat-edges').textContent = allEdges.length.toLocaleString();
+    const filteredCount = visibleNodes.length;
+    if (filteredCount < allNodes.length) {
+      document.getElementById('stat-filtered-row').style.display = '';
+      document.getElementById('stat-filtered').textContent = filteredCount.toLocaleString() + ' nodes';
+    } else {
+      document.getElementById('stat-filtered-row').style.display = 'none';
+    }
+
+    draw();
+  }
+
+  // ── Zoom behaviour ─────────────────────────
+  const zoomBehaviour = d3.zoom()
+    .scaleExtent([0.03, 12])
+    .on('zoom', event => {
+      currentTransform = event.transform;
+      draw();
+    });
+
+  d3.select(canvas).call(zoomBehaviour);
+
+  function zoomBy(factor) {
+    d3.select(canvas).transition().duration(300)
+      .call(zoomBehaviour.scaleBy, factor);
+  }
+
+  function resetZoom() {
+    d3.select(canvas).transition().duration(450)
+      .call(zoomBehaviour.transform, d3.zoomIdentity.translate(canvas.width / 2, canvas.height / 2).scale(0.5));
+  }
+
+  document.getElementById('zoom-in').addEventListener('click', () => zoomBy(1.5));
+  document.getElementById('zoom-out').addEventListener('click', () => zoomBy(1 / 1.5));
+  document.getElementById('zoom-reset').addEventListener('click', resetZoom);
+
+  // ── Mouse / hover ──────────────────────────
+  function screenToGraph(mx, my) {
+    return [(mx - currentTransform.x) / currentTransform.k,
+            (my - currentTransform.y) / currentTransform.k];
+  }
+
+  function findNodeAt(mx, my) {
+    const [gx, gy] = screenToGraph(mx, my);
+    // Search visible nodes; prioritise higher-degree nodes (drawn on top)
+    let best = null, bestDist = Infinity;
+    for (const d of visibleNodes) {
+      if (d.x == null) continue;
+      const r = nodeRadius(d) + 4;
+      const dist = Math.hypot(d.x - gx, d.y - gy);
+      if (dist < r && dist < bestDist) { bestDist = dist; best = d; }
+    }
+    return best;
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const node = findNodeAt(mx, my);
+
+    if (node !== hoveredNode) {
+      hoveredNode = node;
+      canvas.style.cursor = node ? 'pointer' : 'grab';
+      draw();
+    }
+
+    if (node) {
+      const typeClass = node.type;
+      document.getElementById('tt-name').textContent = node.label;
+      document.getElementById('tt-type').textContent = node.type;
+      document.getElementById('tt-type').className = `tt-type ${typeClass}`;
+      document.getElementById('tt-stat').innerHTML =
+        `<strong>${node.degree}</strong> connections · <strong>${node.letterCount}</strong> letters`;
+      document.getElementById('tt-hint').textContent = 'Click to explore connections';
+
+      let tx = e.clientX + 14, ty = e.clientY - 10;
+      if (tx + 280 > window.innerWidth) tx = e.clientX - 280 - 10;
+      if (ty + 100 > window.innerHeight) ty = e.clientY - 100;
+      tooltip.style.left = tx + 'px';
+      tooltip.style.top = ty + 'px';
+      tooltip.classList.add('visible');
+    } else {
+      tooltip.classList.remove('visible');
+    }
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoveredNode = null;
+    tooltip.classList.remove('visible');
+    draw();
+  });
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const node = findNodeAt(mx, my);
+    if (node) {
+      selectNode(node);
+    } else {
+      deselectNode();
+    }
+  });
+
+  // ── Node selection / info panel ────────────
+  function selectNode(node) {
+    selectedNode = node;
+    showInfoPanel(node);
+    draw();
+  }
+
+  function deselectNode() {
+    selectedNode = null;
+    infoPanel.classList.remove('visible');
+    draw();
+  }
+
+  document.getElementById('info-close').addEventListener('click', deselectNode);
+
+  function showInfoPanel(node) {
+    document.getElementById('info-name').textContent = node.label;
+    const typeEl = document.getElementById('info-type');
+    typeEl.textContent = node.type;
+    typeEl.style.color = nodeColor(node);
+    typeEl.style.fontSize = '0.72rem';
+    typeEl.style.fontWeight = '600';
+    typeEl.style.letterSpacing = '0.06em';
+    typeEl.style.textTransform = 'uppercase';
+    typeEl.style.marginBottom = '12px';
+
+    // Find connections
+    const connEdges = visibleEdges.filter(e =>
+      (e.source.id || e.source) === node.id || (e.target.id || e.target) === node.id
+    );
+
+    const connNodes = new Map();
+    connEdges.forEach(e => {
+      const src = e.source.id || e.source;
+      const tgt = e.target.id || e.target;
+      const otherId = src === node.id ? tgt : src;
+      if (!connNodes.has(otherId)) connNodes.set(otherId, { id: otherId, edges: [] });
+      connNodes.get(otherId).edges.push(e);
+    });
+
+    const placeEdges = connEdges.filter(e => e.category === 'place');
+    const letterEdges = connEdges.filter(e => e.category === 'letter');
+    const docEdges = connEdges.filter(e => e.category === 'doc');
+
+    let html = '';
+
+    // Stats
+    html += `<div class="info-section">
+      <div class="info-section-title">Statistics</div>
+      <div class="info-row"><span class="lbl">Connections</span><span class="val">${node.degree}</span></div>
+      <div class="info-row"><span class="lbl">Letters</span><span class="val">${node.letterCount}</span></div>
+      ${node.type !== 'Place' && node.places.length
+        ? `<div class="info-row"><span class="lbl">Places</span><span class="val">${node.places.slice(0,4).join(', ')}${node.places.length > 4 ? `… +${node.places.length - 4}` : ''}</span></div>`
+        : ''}
+      ${node.collections.length
+        ? `<div class="info-row"><span class="lbl">Collections</span><span class="val" style="font-size:0.72rem">${node.collections.slice(0,2).join('; ')}${node.collections.length > 2 ? `… +${node.collections.length - 2}` : ''}</span></div>`
+        : ''}
+    </div>`;
+
+    // Connected nodes
+    const sortedConns = Array.from(connNodes.values())
+      .map(c => {
+        const n2 = allNodes.find(n => n.id === c.id);
+        return { id: c.id, node: n2, edges: c.edges };
+      })
+      .filter(c => c.node)
+      .sort((a, b) => b.edges.length - a.edges.length);
+
+    if (sortedConns.length > 0) {
+      html += `<div class="info-section">
+        <div class="info-section-title">Connections (${sortedConns.length})</div>
+        <div class="info-conn-list">`;
+      sortedConns.slice(0, 50).forEach(c => {
+        const color = nodeColor(c.node);
+        const edgeLabel = c.edges[0].edgeType || c.edges[0].category;
+        html += `<div class="info-conn-item" data-node-id="${escapeHtml(c.id)}">
+          <span class="info-conn-dot" style="background:${color}"></span>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.id)}">${escapeHtml(c.id)}</span>
+          <span style="color:var(--muted);font-size:0.7rem;flex-shrink:0">${c.edges.length}×</span>
+        </div>`;
+      });
+      if (sortedConns.length > 50) {
+        html += `<div style="color:var(--muted);font-size:0.72rem;padding:4px 6px">…and ${sortedConns.length - 50} more</div>`;
+      }
+      html += `</div></div>`;
+    }
+
+    document.getElementById('info-content').innerHTML = html;
+    infoPanel.classList.add('visible');
+
+    // Click on connection → select that node
+    infoPanel.querySelectorAll('.info-conn-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const nid = el.dataset.nodeId;
+        const n2 = allNodes.find(n => n.id === nid);
+        if (n2) selectNode(n2);
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Controls ───────────────────────────────
+  document.getElementById('search').addEventListener('input', e => {
+    searchQuery = e.target.value.trim();
+    draw();
+  });
+
+  document.querySelectorAll('#type-filters .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const type = chip.dataset.type;
+      chip.classList.toggle('active');
+      if (chip.classList.contains('active')) {
+        activeTypes.add(type);
+      } else {
+        activeTypes.delete(type);
+      }
+      applyFilters();
+    });
+  });
+
+  document.getElementById('edge-filter').addEventListener('change', e => {
+    edgeFilter = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('collection-filter').addEventListener('change', e => {
+    collectionFilter = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('labels-toggle').addEventListener('change', e => {
+    showLabels = e.target.checked;
+    draw();
+  });
+
+  // ── D3 Force Simulation ────────────────────
+  function buildSimulation(nodes, edges) {
+    // Resolve source/target references once
+    const nodeById = new Map(nodes.map(n => [n.id, n]));
+    edges.forEach(e => {
+      e.source = nodeById.get(typeof e.source === 'object' ? e.source.id : e.source) || e.source;
+      e.target = nodeById.get(typeof e.target === 'object' ? e.target.id : e.target) || e.target;
+    });
+
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+
+    const sim = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(edges)
+        .id(d => d.id)
+        .distance(d => {
+          if (d.category === 'place') return 90;
+          if (d.category === 'letter') return 55;
+          return 65;
+        })
+        .strength(d => {
+          if (d.category === 'place') return 0.2;
+          return 0.35;
+        })
+      )
+      .force('charge', d3.forceManyBody()
+        .strength(d => d.type === 'Place' ? -60 : -120)
+        .distanceMax(400)
+      )
+      .force('center', d3.forceCenter(cx, cy).strength(0.04))
+      .force('collision', d3.forceCollide()
+        .radius(d => nodeRadius(d) + 3)
+        .strength(0.6)
+      )
+      .alphaDecay(0.012)
+      .velocityDecay(0.5);
+
+    const simProgress = document.getElementById('sim-progress');
+    const simBar = document.getElementById('sim-progress-bar');
+    simProgress.style.display = 'block';
+
+    sim.on('tick', () => {
+      const alpha = sim.alpha();
+      const progress = 1 - (alpha / 1);
+      simBar.style.transform = `scaleX(${Math.min(progress, 1)})`;
+      draw();
+    });
+
+    sim.on('end', () => {
+      simProgress.style.display = 'none';
+      draw();
+    });
+
+    return sim;
+  }
+
+  // ── Load CSV ───────────────────────────────
+  function setLoadingStatus(msg, pct) {
+    document.getElementById('loading-status').textContent = msg;
+    document.getElementById('loading-progress-bar').style.width = pct + '%';
+  }
+
+  setLoadingStatus('Fetching letters-raw.csv…', 10);
+
+  Papa.parse('letters-raw.csv', {
+    header: true,
+    download: true,
+    skipEmptyLines: true,
+    complete(results) {
+      setLoadingStatus(`Processing ${results.data.length.toLocaleString()} records…`, 40);
+
+      setTimeout(() => {
+        const { nodes, edges, collections } = processData(results.data);
+
+        setLoadingStatus(`Building graph (${nodes.length} nodes, ${edges.length} edges)…`, 65);
+
+        // Populate collection filter
+        const collSelect = document.getElementById('collection-filter');
+        collections.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c; opt.textContent = c;
+          collSelect.appendChild(opt);
+        });
+
+        // Update header badge
+        document.getElementById('node-count-badge').textContent =
+          `${nodes.length.toLocaleString()} nodes · ${edges.length.toLocaleString()} edges`;
+
+        allNodes = nodes;
+        allEdges = edges;
+
+        setLoadingStatus('Laying out simulation…', 80);
+
+        setTimeout(() => {
+          // Kick off sizing & simulation
+          resize();
+          visibleNodes = [...allNodes];
+          visibleEdges = [...allEdges];
+          applyFilters();
+
+          simulation = buildSimulation(visibleNodes, visibleEdges);
+
+          // Centre initial view
+          setTimeout(() => {
+            resetZoom();
+          }, 200);
+
+          // Reveal app
+          document.getElementById('loading-overlay').style.display = 'none';
+          document.getElementById('app').style.display = 'flex';
+
+          // Update stat totals
+          document.getElementById('stat-nodes').textContent = allNodes.length.toLocaleString();
+          document.getElementById('stat-edges').textContent = allEdges.length.toLocaleString();
+
+          setLoadingStatus('Done', 100);
+        }, 50);
+      }, 20);
+    },
+    error(err) {
+      document.getElementById('loading-status').textContent = 'Error loading data: ' + err.message;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
