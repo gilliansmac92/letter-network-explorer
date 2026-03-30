@@ -576,7 +576,6 @@ const DOC_EDGE_TYPES = new Set([
   'Papers', 'Notebook', 'Business', 'Confession', 'Consideration',
   'Considerations', 'Discovery', 'Paper', 'Newsletter', 'Letters',
   'Drafts, notes, etc', 'Act', 'Queries', 'Representation', 'Recommendation',
-  'Account ', // trailing space variant
 ]);
 
 // Known name aliases: raw CSV value → canonical form
@@ -587,7 +586,6 @@ const NAME_ALIASES = {
   'Hamitlon':              'Hamilton',
   'Melvile':               'Melville',
   'Glengarrie':            'Glengarry',
-  'Glengarrie ':           'Glengarry',
   'MacKay':                'Mackay',
 
   // "Carwhin" = Colin Campbell of Carwhin (factor to Earl of Breadalbane).
@@ -601,28 +599,8 @@ const NAME_ALIASES = {
   // "Dunfermline" as a surname-only addressee = Alexander Seton, Earl of Dunfermline
   // Lady Dunfermline / Countess Dunfermline = his wife; kept separate.
   'Countess Dunfermline':  'Countess of Dunfermline',
-
-  // Whitespace-only variants (handled by trim, but listed explicitly for clarity)
-  'Melville ':             'Melville',
-  'Melville  ':            'Melville',
-  'Hamilton ':             'Hamilton',
-  'King William ':         'King William',
-  'King James ':           'King James',
-  'Queen Mary ':           'Queen Mary',
-  'Breadalbane ':          'Breadalbane',
-  'Mackay ':               'Mackay',
-  'Cardross ':             'Cardross',
-  'Polwarth ':             'Polwarth',
-  'Leven ':                'Leven',
-  'Hill ':                 'Hill',
-  'Crawford ':             'Crawford',
-  'Arran ':                'Arran',
-  'Ross ':                 'Ross',
-  'Annandale ':            'Annandale',
-  'Tarbat ':               'Tarbat',
-  'Raith ':                'Raith',
-  'Perth ':                'Perth',
-  'Atholl ':               'Atholl',
+  // Note: whitespace-only variants (e.g. "Melville ") are handled upstream
+  // by the `.trim()` call in normalizeName() and do not need aliases here.
 };
 
 // Place aliases: normalize minor variants
@@ -670,7 +648,7 @@ function isUnknown(name) {
 }
 
 function getEdgeCategory(edgeType) {
-  const e = (edgeType || '').trim();
+  const e = (edgeType || '').trim(); // trim to handle any trailing-space variants in the data
   if (LETTER_EDGE_TYPES.has(e)) return 'letter';
   if (e === 'sent from' || e === 'received at') return 'place';
   return 'doc';
@@ -700,6 +678,8 @@ function processData(rows) {
     } else {
       // Keep most descriptive type if we see a better one
       const existing = nodesMap.get(id);
+      // Person > Group/Organization > Place: prefer the most descriptive type
+      // seen across multiple rows referencing the same name.
       const typePriority = { 'Person': 3, 'Group': 2, 'Organization': 2, 'Place': 1 };
       if ((typePriority[type] || 0) > (typePriority[existing.type] || 0)) {
         existing.type = type;
@@ -754,14 +734,14 @@ function processData(rows) {
 
     // Place edges — one unique edge per (person, place) pair
     if (!isUnknown(fromName) && !isUnknown(fromPlace)) {
-      const key = `${fromName}\x00${fromPlace}`;
+      const key = `${fromName}|${fromPlace}`;
       if (!seenPlaceEdges.has(key)) {
         seenPlaceEdges.add(key);
         addEdge(fromName, fromPlace, 'sent from', { date: '', collection: '', reference: '', weight: 1 });
       }
     }
     if (!isUnknown(toName) && !isUnknown(toPlace)) {
-      const key = `${toName}\x00${toPlace}`;
+      const key = `${toName}|${toPlace}`;
       if (!seenPlaceEdges.has(key)) {
         seenPlaceEdges.add(key);
         addEdge(toName, toPlace, 'received at', { date: '', collection: '', reference: '', weight: 1 });
@@ -1133,7 +1113,6 @@ function processData(rows) {
         <div class="info-conn-list">`;
       sortedConns.slice(0, 50).forEach(c => {
         const color = nodeColor(c.node);
-        const edgeLabel = c.edges[0].edgeType || c.edges[0].category;
         html += `<div class="info-conn-item" data-node-id="${escapeHtml(c.id)}">
           <span class="info-conn-dot" style="background:${color}"></span>
           <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(c.id)}">${escapeHtml(c.id)}</span>
